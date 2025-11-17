@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:orientation="vertical" android:tag="layout/activity_self_test_help_0" android:fitsSystemWindows="true" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <include android:id="@id/toolbar" layout="@layout/layout_toolbar" />
+    <ScrollView android:paddingBottom="20.0dip" android:scrollbars="none" android:layout_width="fill_parent" android:layout_height="fill_parent">
+        <LinearLayout android:orientation="vertical" android:layout_width="fill_parent" android:layout_height="wrap_content" android:paddingStart="30.0dip" android:paddingEnd="30.0dip">
+            <TextView android:textSize="16.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="25.0dip" android:text="@string/self_test_help_title" android:fontFamily="@font/opensans_semibold" />
+            <LinearLayout android:orientation="horizontal" android:tag="binding_1" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="24.0dip">
+                <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="@string/self_test_help1_title" android:layout_weight="1.0" android:fontFamily="@font/opensans_semibold" />
+                <ImageView android:id="@id/ic1" android:layout_width="20.0dip" android:layout_height="20.0dip" android:src="@drawable/ic_arrow_up" />
+            </LinearLayout>
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:id="@id/tv_answer_1" android:background="@drawable/bg_section" android:padding="10.0dip" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/self_test_help1_content" android:fontFamily="@font/opensans_regular" />
+            <LinearLayout android:orientation="horizontal" android:tag="binding_2" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="24.0dip">
+                <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="@string/self_test_help2_title" android:layout_weight="1.0" android:fontFamily="@font/opensans_semibold" />
+                <ImageView android:id="@id/ic2" android:layout_width="20.0dip" android:layout_height="20.0dip" android:src="@drawable/ic_arrow_up" />
+            </LinearLayout>
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:id="@id/tv_answer_2" android:background="@drawable/bg_section" android:padding="10.0dip" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/self_test_help2_content" android:fontFamily="@font/opensans_regular" />
+            <LinearLayout android:orientation="horizontal" android:tag="binding_3" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="24.0dip">
+                <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="@string/self_test_help3_title" android:layout_weight="1.0" android:fontFamily="@font/opensans_semibold" />
+                <ImageView android:id="@id/ic3" android:layout_width="20.0dip" android:layout_height="20.0dip" android:src="@drawable/ic_arrow_up" />
+            </LinearLayout>
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:id="@id/tv_answer_3" android:background="@drawable/bg_section" android:padding="10.0dip" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/self_test_help3_content" android:fontFamily="@font/opensans_regular" />
+            <LinearLayout android:orientation="horizontal" android:tag="binding_4" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="24.0dip">
+                <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="@string/self_test_help4_title" android:layout_weight="1.0" android:fontFamily="@font/opensans_semibold" />
+                <ImageView android:id="@id/ic4" android:layout_width="20.0dip" android:layout_height="20.0dip" android:src="@drawable/ic_arrow_up" />
+            </LinearLayout>
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:id="@id/tv_answer_4" android:background="@drawable/bg_section" android:padding="10.0dip" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/self_test_help4_content" android:fontFamily="@font/opensans_regular" />
+            <LinearLayout android:orientation="horizontal" android:tag="binding_5" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="24.0dip">
+                <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="@string/self_test_help5_title" android:layout_weight="1.0" android:fontFamily="@font/opensans_semibold" />
+                <ImageView android:id="@id/ic5" android:layout_width="20.0dip" android:layout_height="20.0dip" android:src="@drawable/ic_arrow_up" />
+            </LinearLayout>
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:id="@id/tv_answer_5" android:background="@drawable/bg_section" android:padding="10.0dip" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/self_test_help5_content" android:fontFamily="@font/opensans_regular" />
+            <LinearLayout android:orientation="horizontal" android:tag="binding_6" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="24.0dip">
+                <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="@string/self_test_help6_title" android:layout_weight="1.0" android:fontFamily="@font/opensans_semibold" />
+                <ImageView android:id="@id/ic6" android:layout_width="20.0dip" android:layout_height="20.0dip" android:src="@drawable/ic_arrow_up" />
+            </LinearLayout>
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:id="@id/tv_answer_6" android:background="@drawable/bg_section" android:padding="10.0dip" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/self_test_help6_content" android:fontFamily="@font/opensans_regular" />
+            <LinearLayout android:orientation="horizontal" android:tag="binding_7" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="24.0dip">
+                <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="0.0dip" android:layout_height="wrap_content" android:text="@string/self_test_help7_title" android:layout_weight="1.0" android:fontFamily="@font/opensans_semibold" />
+                <ImageView android:id="@id/ic7" android:layout_width="20.0dip" android:layout_height="20.0dip" android:src="@drawable/ic_arrow_up" />
+            </LinearLayout>
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:id="@id/tv_answer_7" android:background="@drawable/bg_section" android:padding="10.0dip" android:visibility="gone" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/self_test_help7_content" android:fontFamily="@font/opensans_regular" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:tag="layout/activity_device_fw_update_help_0" android:fitsSystemWindows="true" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <include android:id="@id/toolbar" layout="@layout/layout_toolbar" />
+    <ScrollView android:layout_width="fill_parent" android:layout_height="0.0dip" android:layout_marginBottom="25.0dip" app:layout_constraintBottom_toTopOf="@id/btn_customer" app:layout_constraintTop_toBottomOf="@id/toolbar">
+        <LinearLayout android:orientation="vertical" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:layout_marginStart="16.0dip" android:layout_marginEnd="16.0dip">
+            <TextView android:textSize="16.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:text="@string/to_resolve_the_issue" android:fontFamily="@font/opensans_semibold" />
+            <TextView android:textSize="16.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="20.0dip" android:text="@string/check_device_connection" android:fontFamily="@font/opensans_semibold" />
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/check_device_connection_content" android:fontFamily="@font/opensans_regular" />
+            <TextView android:textSize="16.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="20.0dip" android:text="@string/verify_network_connection" android:fontFamily="@font/opensans_semibold" />
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/verify_network_connection_content" android:fontFamily="@font/opensans_regular" />
+            <TextView android:textSize="16.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="20.0dip" android:text="@string/retry_firmware_upgrade" android:fontFamily="@font/opensans_semibold" />
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/retry_firmware_upgrade_content" android:fontFamily="@font/opensans_regular" />
+            <TextView android:textSize="16.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="20.0dip" android:text="@string/contact_support" android:fontFamily="@font/opensans_semibold" />
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/contact_support_content" android:fontFamily="@font/opensans_regular" />
+        </LinearLayout>
+    </ScrollView>
+    <FrameLayout android:id="@id/btn_customer" android:layout_marginBottom="20.0dip" android:layout_marginStart="30.0dip" android:layout_marginEnd="30.0dip" app:layout_constraintBottom_toBottomOf="parent" style="@style/CommonButton">
+        <TextView android:textSize="16.0sp" android:textColor="@color/btn_text_color" android:gravity="center" android:layout_gravity="center" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/customer_service" android:fontFamily="@font/opensans_bold" android:drawableTint="@color/btn_text_color" app:drawableStartCompat="@drawable/ic_customer" />
+    </FrameLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

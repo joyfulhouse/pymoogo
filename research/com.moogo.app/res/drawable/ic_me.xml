@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector android:height="24.0dip" android:width="24.0dip" android:viewportWidth="24.0" android:viewportHeight="24.0"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <path android:fillColor="@color/tab_unselected" android:pathData="m11.855,12.444c2.761,0 5,-2.239 5,-5c0,-2.761 -2.239,-5 -5,-5c-2.761,0 -5,2.239 -5,5c0,2.761 2.239,5 5,5z" />
+    <path android:fillColor="@color/tab_unselected" android:pathData="m3.855,21.447l0,-2.237c0,-1.414 0.562,-2.771 1.562,-3.771c1,-1 2.357,-1.562 3.771,-1.562l5.333,0c1.414,0 2.771,0.562 3.771,1.562c1,1 1.562,2.357 1.562,3.771l0,2.237" />
+</vector>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation android:id="@id/add_device_navigation" app:startDestination="@id/nav_find_device"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.ndroid.com/tools">
+    <fragment android:label="FindDeviceFragment" android:name="com.moogo.app.ui.add_device.FindDeviceFragment" android:id="@id/nav_find_device" tools:layout="@layout/fragment_find_device" />
+    <fragment android:label="SetWifiFragment" android:name="com.moogo.app.ui.add_device.SetWifiFragment" android:id="@id/nav_set_wifi" tools:layout="@layout/fragment_set_wifi" />
+    <fragment android:label="DeviceInitConfigFragment" android:name="com.moogo.app.ui.add_device.DeviceInitConfigFragment" android:id="@id/nav_init_config" tools:layout="@layout/fragment_device_init_config" />
+    <fragment android:label="SetProgressFragment" android:name="com.moogo.app.ui.add_device.SetProgressFragment" android:id="@id/nav_set_progress" tools:layout="@layout/fragment_set_progress" />
+    <action android:id="@id/action_to_set_wifi" app:destination="@id/nav_set_wifi" app:enterAnim="@anim/slide_in_right" app:exitAnim="@anim/slide_out_left" app:popEnterAnim="@anim/slide_in_left" app:popExitAnim="@anim/slide_out_right" />
+    <action android:id="@id/action_to_init_config" app:destination="@id/nav_init_config" app:enterAnim="@anim/slide_in_right" app:exitAnim="@anim/slide_out_left" app:popEnterAnim="@anim/slide_in_left" app:popExitAnim="@anim/slide_out_right" />
+    <action android:id="@id/action_to_set_progress" app:destination="@id/nav_set_progress" app:enterAnim="@anim/slide_in_right" app:exitAnim="@anim/slide_out_left" app:popEnterAnim="@anim/slide_in_left" app:popExitAnim="@anim/slide_out_right" />
+</navigation>

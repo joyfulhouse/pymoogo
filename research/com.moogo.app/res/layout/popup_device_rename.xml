@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:layout_gravity="center" android:orientation="vertical" android:background="@drawable/bg_center_popup" android:layout_width="fill_parent" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="16.0sp" android:textColor="@color/textPrimary" android:layout_gravity="center_horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="32.0dip" android:text="@string/rename_device" android:fontFamily="@font/opensans_bold" />
+    <EditText android:textSize="14.0sp" android:textColor="@color/textPrimary" android:textColorHint="@color/textHint" android:id="@id/edt_name" android:background="@drawable/stroke_primary60_1" android:layout_width="fill_parent" android:layout_height="50.0dip" android:layout_marginTop="34.0dip" android:hint="@string/device_name" android:maxLines="1" android:maxEms="20" android:maxLength="20" android:fontFamily="@font/opensans_semibold" android:paddingStart="10.0dip" android:paddingEnd="10.0dip" android:layout_marginStart="24.0dip" android:layout_marginEnd="24.0dip" />
+    <LinearLayout android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="20.0dip" android:layout_marginBottom="20.0dip" android:layout_marginStart="24.0dip" android:layout_marginEnd="24.0dip">
+        <TextView android:id="@id/btn_cancel" android:text="@string/cancel" android:layout_weight="1.0" android:layout_marginEnd="5.0dip" style="@style/RingButton" />
+        <TextView android:id="@id/btn_save" android:text="@string/save" android:layout_weight="1.0" android:layout_marginStart="5.0dip" style="@style/CommonButton" />
+    </LinearLayout>
+</LinearLayout>

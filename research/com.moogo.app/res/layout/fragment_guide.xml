@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:tag="layout/fragment_guide_0" android:background="@color/background" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <TextView android:textSize="18.0sp" android:textColor="@color/textPrimary" android:gravity="center" android:id="@id/tv_title" android:layout_width="wrap_content" android:layout_height="56.0dip" android:layout_marginTop="28.0dip" android:text="@string/title_guide" android:fontFamily="@font/poppins_semibold" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+    <com.google.android.material.tabs.TabLayout android:id="@id/tabLayout" android:background="@null" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" app:layout_constraintTop_toBottomOf="@id/tv_title" app:tabIndicatorHeight="0.0dip" app:tabMode="scrollable" app:tabPaddingEnd="0.0dip" app:tabPaddingStart="10.0dip" />
+    <com.drake.brv.PageRefreshLayout android:id="@id/refresh" android:layout_width="fill_parent" android:layout_height="0.0dip" android:layout_marginTop="20.0dip" android:layout_marginStart="16.0dip" android:layout_marginEnd="16.0dip" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintTop_toBottomOf="@id/tabLayout" app:stateEnabled="true">
+        <androidx.recyclerview.widget.RecyclerView android:id="@id/recyclerView" android:background="@drawable/bg_section" android:layout_width="fill_parent" android:layout_height="wrap_content" />
+    </com.drake.brv.PageRefreshLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

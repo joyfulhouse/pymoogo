@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:gravity="center_horizontal" android:orientation="vertical" android:id="@id/schedule_empty" android:tag="layout/item_schedule_list_empty_0" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <ImageView android:id="@id/iv_schedule_empty" android:layout_width="230.0dip" android:layout_height="180.0dip" android:layout_marginTop="100.0dip" android:src="@mipmap/img_schedule_list_empty" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent" />
+    <TextView android:textSize="16.0sp" android:textColor="@color/textPrimary" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20.0dip" android:text="@string/no_schedule" android:fontFamily="@font/opensans_bold" />
+    <TextView android:textSize="12.0sp" android:textColor="@color/textPrimary" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/no_spraying_schedule_now" android:fontFamily="@font/opensans_regular" />
+    <View android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_weight="1.0" />
+    <TextView android:textSize="12.0sp" android:textColor="@color/textPrimary60" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginBottom="27.0dip" android:text="@string/you_may_add_up_to_20_schedules" android:fontFamily="@font/opensans_regular" />
+</LinearLayout>

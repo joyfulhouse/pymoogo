@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:tag="layout/activity_user_detail_0" android:fitsSystemWindows="true" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <include android:id="@id/toolbar" layout="@layout/layout_toolbar" />
+    <LinearLayout android:orientation="vertical" android:id="@id/layout_content" android:background="@drawable/bg_section" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:layout_marginStart="16.0dip" android:layout_marginEnd="16.0dip" app:layout_constraintTop_toBottomOf="@id/toolbar">
+        <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="60.0dip" android:paddingStart="14.0dip" android:paddingEnd="14.0dip">
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/email" android:fontFamily="@font/opensans_semibold" />
+            <TextView android:textSize="12.0sp" android:textColor="@color/textPrimary60" android:gravity="end" android:tag="binding_1" android:layout_width="fill_parent" android:layout_height="wrap_content" android:fontFamily="@font/opensans_semibold" />
+        </LinearLayout>
+        <View android:background="@color/div_line" android:layout_width="fill_parent" android:layout_height="1.0dip" android:layout_marginStart="14.0dip" android:layout_marginEnd="14.0dip" />
+        <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="60.0dip" android:paddingStart="14.0dip" android:paddingEnd="14.0dip">
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/nickname" android:fontFamily="@font/opensans_semibold" />
+            <TextView android:textSize="12.0sp" android:textColor="@color/textPrimary60" android:gravity="end" android:tag="binding_2" android:layout_width="fill_parent" android:layout_height="wrap_content" android:fontFamily="@font/opensans_semibold" />
+        </LinearLayout>
+        <View android:background="@color/div_line" android:layout_width="fill_parent" android:layout_height="1.0dip" android:layout_marginStart="14.0dip" android:layout_marginEnd="14.0dip" />
+        <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="60.0dip" android:paddingStart="14.0dip" android:paddingEnd="14.0dip">
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/status" android:fontFamily="@font/opensans_semibold" />
+            <TextView android:textSize="12.0sp" android:gravity="end" android:tag="binding_3" android:layout_width="fill_parent" android:layout_height="wrap_content" android:fontFamily="@font/opensans_semibold" />
+        </LinearLayout>
+        <View android:background="@color/div_line" android:layout_width="fill_parent" android:layout_height="1.0dip" android:layout_marginStart="14.0dip" android:layout_marginEnd="14.0dip" />
+        <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:layout_width="fill_parent" android:layout_height="60.0dip" android:paddingStart="14.0dip" android:paddingEnd="14.0dip">
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/invited_at" android:fontFamily="@font/opensans_semibold" />
+            <TextView android:textSize="12.0sp" android:textColor="@color/textPrimary60" android:gravity="end" android:tag="binding_4" android:layout_width="fill_parent" android:layout_height="wrap_content" android:fontFamily="@font/opensans_semibold" />
+        </LinearLayout>
+        <View android:tag="binding_5" android:background="@color/div_line" android:layout_width="fill_parent" android:layout_height="1.0dip" android:layout_marginStart="14.0dip" android:layout_marginEnd="14.0dip" />
+        <LinearLayout android:gravity="center_vertical" android:orientation="horizontal" android:tag="binding_6" android:layout_width="fill_parent" android:layout_height="60.0dip" android:paddingStart="14.0dip" android:paddingEnd="14.0dip">
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:tag="binding_7" android:layout_width="wrap_content" android:layout_height="wrap_content" android:fontFamily="@font/opensans_semibold" />
+            <TextView android:textSize="12.0sp" android:textColor="@color/textPrimary60" android:gravity="end" android:tag="binding_8" android:layout_width="fill_parent" android:layout_height="wrap_content" android:fontFamily="@font/opensans_semibold" />
+        </LinearLayout>
+    </LinearLayout>
+    <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary60" android:tag="binding_9" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="20.0dip" android:text="@string/transfer_ownership" android:fontFamily="@font/opensans_semibold" android:layout_marginEnd="16.0dip" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toBottomOf="@id/layout_content" />
+    <TextView android:id="@id/btn_cancel" android:tag="binding_10" android:layout_width="0.0dip" android:layout_marginBottom="20.0dip" android:layout_marginStart="@dimen/common_horizontal_margin" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toStartOf="@id/btn_remove" app:layout_constraintStart_toStartOf="parent" style="@style/RingButton" />
+    <TextView android:id="@id/btn_remove" android:tag="binding_11" android:layout_width="0.0dip" android:layout_marginBottom="20.0dip" android:text="@string/remove" android:layout_marginStart="16.0dip" android:layout_marginEnd="@dimen/common_horizontal_margin" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toEndOf="@id/btn_cancel" style="@style/CommonButton" />
+</androidx.constraintlayout.widget.ConstraintLayout>

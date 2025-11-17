@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#ff313130</color>
+    <color name="bg_page">#ff313130</color>
+    <color name="bg_popup">#ff424140</color>
+    <color name="bg_section">#ff535251</color>
+    <color name="bg_sign_in">#ff313130</color>
+    <color name="btn_text">#ff383d3f</color>
+    <color name="colorError">#ffffb392</color>
+    <color name="divLine">#1a383d3f</color>
+    <color name="div_line">#40f5f3f0</color>
+    <color name="edit_bg">#ff5b5a59</color>
+    <color name="home_liquid_status_bg">#66e8decf</color>
+    <color name="iconTint">#fff5f3f0</color>
+    <color name="iconTint50">#80f5f3f0</color>
+    <color name="logo_tint">#99f5f3f0</color>
+    <color name="picker_selected">#ff535251</color>
+    <color name="progress_container">#ff313130</color>
+    <color name="progress_inner_ring">#ffe8decf</color>
+    <color name="progress_outer_ring">#ff424740</color>
+    <color name="progress_outer_ring_failed">#ff594836</color>
+    <color name="skeleton">#ff313130</color>
+    <color name="tabBgNormal">#b3535251</color>
+    <color name="tabBgSelected">#ffe8decf</color>
+    <color name="tabTextNormal">#fff5f3f0</color>
+    <color name="tabTextSelected">#ff383d3f</color>
+    <color name="textHint">#80f5f3f0</color>
+    <color name="textPrimary">#fff5f3f0</color>
+    <color name="textPrimary10">#1af5f3f0</color>
+    <color name="textPrimary50">#80f5f3f0</color>
+    <color name="textPrimary6">#0ff5f3f0</color>
+    <color name="textPrimary60">#99f5f3f0</color>
+    <color name="textPrimary80">#ccf5f3f0</color>
+</resources>

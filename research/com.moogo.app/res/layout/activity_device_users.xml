@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:tag="layout/activity_device_users_0" android:fitsSystemWindows="true" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <include android:id="@id/toolbar" layout="@layout/layout_toolbar" />
+    <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary60" android:gravity="center" android:id="@id/tv_tips" android:layout_width="0.0dip" android:layout_height="wrap_content" android:layout_marginTop="88.0dip" android:text="@string/authority_tips" android:fontFamily="@font/opensans_semibold" android:layout_marginStart="40.0dip" android:layout_marginEnd="40.0dip" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toBottomOf="@id/toolbar" />
+    <com.drake.brv.PageRefreshLayout android:id="@id/refresh" android:paddingBottom="50.0dip" android:layout_width="fill_parent" android:layout_height="0.0dip" android:layout_marginTop="62.0dip" android:layout_marginBottom="80.0dip" android:layout_marginStart="16.0dip" android:layout_marginEnd="16.0dip" app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintTop_toBottomOf="@id/tv_tips" app:stateEnabled="true">
+        <androidx.recyclerview.widget.RecyclerView android:id="@id/recyclerView" android:background="@drawable/bg_section" android:layout_width="fill_parent" android:layout_height="wrap_content" />
+    </com.drake.brv.PageRefreshLayout>
+    <TextView android:id="@id/btn_add_user" android:tag="binding_1" android:layout_marginBottom="20.0dip" android:text="@string/add_user" android:layout_marginStart="@dimen/common_horizontal_margin" android:layout_marginEnd="@dimen/common_horizontal_margin" app:layout_constraintBottom_toBottomOf="parent" style="@style/CommonButton" />
+</androidx.constraintlayout.widget.ConstraintLayout>

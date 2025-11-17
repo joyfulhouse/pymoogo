@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:layout_gravity="center" android:orientation="vertical" android:background="@drawable/bg_center_popup" android:layout_width="fill_parent" android:layout_height="wrap_content"
+  xmlns:android="http://schemas.android.com/apk/res/android">
+    <TextView android:textSize="16.0sp" android:textColor="@color/textPrimary" android:layout_gravity="center_horizontal" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="32.0dip" android:text="@string/confirm_skipping_spray" android:fontFamily="@font/opensans_bold" />
+    <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary60" android:gravity="center" android:id="@id/tv_time" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="20.0dip" android:fontFamily="@font/opensans_semibold" android:layout_marginStart="15.0dip" android:layout_marginEnd="15.0dip" />
+    <TextView android:textSize="12.0sp" android:textColor="@color/textPrimary60" android:gravity="center" android:id="@id/tv_date" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="4.0dip" android:fontFamily="@font/opensans_regular" android:layout_marginStart="15.0dip" android:layout_marginEnd="15.0dip" />
+    <TextView android:id="@id/btn_sure" android:layout_marginTop="35.0dip" android:text="@string/sure" android:layout_marginStart="24.0dip" android:layout_marginEnd="24.0dip" style="@style/CommonButton" />
+    <TextView android:id="@id/btn_skip" android:layout_marginTop="10.0dip" android:layout_marginBottom="20.0dip" android:text="@string/cancel" android:layout_marginStart="24.0dip" android:layout_marginEnd="24.0dip" style="@style/RingButton" />
+</LinearLayout>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:tag="layout/activity_change_email_0" android:fitsSystemWindows="true" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <include android:id="@id/toolbar" layout="@layout/layout_toolbar" />
+    <androidx.constraintlayout.widget.ConstraintLayout android:background="@drawable/bg_section" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:layout_marginStart="@dimen/common_horizontal_margin" android:layout_marginEnd="@dimen/common_horizontal_margin" app:layout_constraintTop_toBottomOf="@id/toolbar">
+        <EditText android:id="@id/edt_email" android:tag="binding_1" android:hint="@string/new_email" android:inputType="textEmailAddress" android:paddingStart="14.0dip" android:paddingEnd="14.0dip" style="@style/CommonEditText" />
+        <ImageView android:tag="binding_2" android:layout_width="24.0dip" android:layout_height="24.0dip" android:src="@drawable/ic_edit_clear" android:layout_marginEnd="14.0dip" app:layout_constraintBottom_toBottomOf="@id/edt_email" app:layout_constraintEnd_toEndOf="@id/edt_email" app:layout_constraintTop_toTopOf="@id/edt_email" />
+        <View android:id="@id/div" android:background="@color/div_line" android:layout_width="fill_parent" android:layout_height="1.0dip" android:layout_marginStart="14.0dip" android:layout_marginEnd="14.0dip" app:layout_constraintTop_toBottomOf="@id/edt_email" />
+        <EditText android:id="@id/edt_code" android:tag="binding_3" android:hint="@string/verification_code" android:inputType="numberDecimal" android:paddingStart="14.0dip" android:paddingEnd="14.0dip" app:layout_constraintTop_toBottomOf="@id/div" style="@style/CommonEditText" />
+        <TextView android:id="@id/btn_send" android:tag="binding_4" android:layout_marginEnd="14.0dip" app:layout_constraintBottom_toBottomOf="@id/edt_code" app:layout_constraintEnd_toEndOf="@id/edt_code" app:layout_constraintTop_toTopOf="@id/edt_code" style="@style/SendButton" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
+    <TextView android:id="@id/btn_save" android:tag="binding_5" android:layout_marginBottom="32.0dip" android:text="@string/submit" android:layout_marginStart="@dimen/common_horizontal_margin" android:layout_marginEnd="@dimen/common_horizontal_margin" app:layout_constraintBottom_toBottomOf="parent" style="@style/CommonButton" />
+</androidx.constraintlayout.widget.ConstraintLayout>

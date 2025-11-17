@@ -1,0 +1,13 @@
+.class public final Lcom/moogo/app/ui/add_device/AddDeviceHelpVM;
+.super Lcom/rainbow0o0/base/vm/BaseVM;
+.source "SourceFile"
+
+
+# direct methods
+.method public constructor <init>()V
+    .locals 0
+
+    invoke-direct {p0}, Lcom/rainbow0o0/base/vm/BaseVM;-><init>()V
+
+    return-void
+.end method

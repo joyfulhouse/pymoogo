@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout android:gravity="center" android:orientation="vertical" android:tag="layout/empty_home_0" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <ImageView android:layout_width="229.0dip" android:layout_height="188.0dip" android:src="@mipmap/img_no_device" />
+    <TextView android:textSize="16.0sp" android:textColor="@color/textPrimary" android:id="@id/tv" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="12.0dip" android:text="@string/no_device" android:fontFamily="@font/opensans_bold" />
+    <TextView android:textSize="12.0sp" android:textColor="@color/textPrimary" android:gravity="center" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/tips_no_device" android:fontFamily="@font/opensans_regular" />
+    <TextView android:textSize="14.0sp" android:textColor="@color/btn_text" android:gravity="center" android:id="@id/btn_add_device" android:background="@drawable/bg_btn" android:layout_width="166.0dip" android:layout_height="36.0dip" android:layout_marginTop="14.0dip" android:text="@string/add_device" android:fontFamily="@font/opensans_bold" />
+</LinearLayout>

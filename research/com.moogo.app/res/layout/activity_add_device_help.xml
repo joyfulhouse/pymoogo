@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout android:tag="layout/activity_add_device_help_0" android:fitsSystemWindows="true" android:layout_width="fill_parent" android:layout_height="fill_parent"
+  xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto">
+    <include android:id="@id/toolbar" layout="@layout/layout_toolbar" />
+    <ScrollView android:scrollbars="none" android:layout_width="fill_parent" android:layout_height="0.0dip" android:paddingStart="16.0dip" android:paddingEnd="16.0dip" app:layout_constraintBottom_toTopOf="@id/btn_customer" app:layout_constraintTop_toBottomOf="@id/toolbar">
+        <LinearLayout android:orientation="vertical" android:layout_width="fill_parent" android:layout_height="0.0dip">
+            <TextView android:textSize="16.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="10.0dip" android:text="@string/add_device_help1_title" android:fontFamily="@font/opensans_semibold" />
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="15.0dip" android:text="@string/add_device_help1_content1" android:fontFamily="@font/opensans_medium" />
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="15.0dip" android:text="@string/add_device_help1_content2" android:fontFamily="@font/opensans_medium" />
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="15.0dip" android:text="@string/add_device_help1_content3" android:fontFamily="@font/opensans_medium" />
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="15.0dip" android:text="@string/add_device_help1_content4" android:fontFamily="@font/opensans_medium" />
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="15.0dip" android:text="@string/add_device_help1_content5" android:fontFamily="@font/opensans_medium" />
+            <TextView android:textSize="16.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="24.0dip" android:text="@string/add_device_help2_title" android:fontFamily="@font/opensans_semibold" />
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="15.0dip" android:text="@string/add_device_help2_content1" android:fontFamily="@font/opensans_medium" />
+            <TextView android:textSize="14.0sp" android:textColor="@color/textPrimary" android:layout_width="fill_parent" android:layout_height="wrap_content" android:layout_marginTop="15.0dip" android:layout_marginBottom="20.0dip" android:text="@string/add_device_help2_content2" android:fontFamily="@font/opensans_medium" />
+        </LinearLayout>
+    </ScrollView>
+    <FrameLayout android:id="@id/btn_customer" android:background="@drawable/bg_btn" android:layout_width="fill_parent" android:layout_height="48.0dip" android:layout_marginBottom="20.0dip" android:layout_marginStart="16.0dip" android:layout_marginEnd="16.0dip" app:layout_constraintBottom_toBottomOf="parent">
+        <TextView android:textSize="16.0sp" android:textColor="@color/btn_text_color" android:gravity="center" android:layout_gravity="center" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/customer_service" android:drawablePadding="8.0dip" android:fontFamily="@font/opensans_bold" android:drawableTint="@color/btn_text_color" app:drawableStartCompat="@drawable/ic_customer" />
+    </FrameLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="nozzles_amount">
+        <item>10 Nozzles</item>
+        <item>15 Nozzles</item>
+        <item>20 Nozzles</item>
+        <item>25 Nozzles</item>
+    </string-array>
+</resources>

@@ -1,0 +1,40 @@
+.class public final synthetic Lcom/airbnb/lottie/y;
+.super Ljava/lang/Object;
+.source "SourceFile"
+
+# interfaces
+.implements Lcom/airbnb/lottie/LottieDrawable$b;
+
+
+# instance fields
+.field public final synthetic a:Lcom/airbnb/lottie/LottieDrawable;
+
+.field public final synthetic b:Ljava/lang/String;
+
+
+# direct methods
+.method public synthetic constructor <init>(Lcom/airbnb/lottie/LottieDrawable;Ljava/lang/String;)V
+    .locals 0
+
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+
+    iput-object p1, p0, Lcom/airbnb/lottie/y;->a:Lcom/airbnb/lottie/LottieDrawable;
+
+    iput-object p2, p0, Lcom/airbnb/lottie/y;->b:Ljava/lang/String;
+
+    return-void
+.end method
+
+
+# virtual methods
+.method public final run()V
+    .locals 2
+
+    iget-object v0, p0, Lcom/airbnb/lottie/y;->a:Lcom/airbnb/lottie/LottieDrawable;
+
+    iget-object v1, p0, Lcom/airbnb/lottie/y;->b:Ljava/lang/String;
+
+    invoke-virtual {v0, v1}, Lcom/airbnb/lottie/LottieDrawable;->s(Ljava/lang/String;)V
+
+    return-void
+.end method
