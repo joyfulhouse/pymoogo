@@ -1,0 +1,16 @@
+# Test dependencies for Moogo API client
+
+# Core testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+
+# Environment configuration
+python-dotenv>=1.0.0
+
+# HTTP client (required by main package)
+aiohttp>=3.8.0
+
+# Optional: Enhanced test output
+pytest-xdist>=3.3.0  # Parallel test execution
+pytest-sugar>=0.9.7  # Better test output formatting
