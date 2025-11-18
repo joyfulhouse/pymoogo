@@ -7,7 +7,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from functools import wraps
 from types import TracebackType
-from typing import Any, Optional, TypeVar
+from typing import Any, TypeVar
 
 import aiohttp
 from aiohttp import ClientSession, ClientTimeout
@@ -66,7 +66,7 @@ def retry_with_backoff(
         @wraps(func)
         async def wrapper(*args: Any, **kwargs: Any) -> Any:
             delay = initial_delay
-            last_exception: Optional[Exception] = None
+            last_exception: Exception | None = None
 
             for attempt in range(1, max_attempts + 1):
                 try:
@@ -159,10 +159,10 @@ class MoogoClient:
 
     def __init__(
         self,
-        email: Optional[str] = None,
-        password: Optional[str] = None,
+        email: str | None = None,
+        password: str | None = None,
         base_url: str = BASE_URL,
-        session: Optional[ClientSession] = None,
+        session: ClientSession | None = None,
         timeout: int = DEFAULT_TIMEOUT,
     ):
         """
@@ -201,13 +201,13 @@ class MoogoClient:
         self._session_owner = session is None
 
         # Authentication state
-        self._token: Optional[str] = None
-        self._user_id: Optional[str] = None
-        self._token_expires: Optional[datetime] = None
+        self._token: str | None = None
+        self._user_id: str | None = None
+        self._token_expires: datetime | None = None
 
         # Caching
-        self._devices_cache: Optional[list[dict[str, Any]]] = None
-        self._devices_cache_time: Optional[datetime] = None
+        self._devices_cache: list[dict[str, Any]] | None = None
+        self._devices_cache_time: datetime | None = None
         self._devices_cache_ttl = timedelta(minutes=5)
 
         # Circuit breaker for offline devices
@@ -223,9 +223,9 @@ class MoogoClient:
 
     async def __aexit__(
         self,
-        exc_type: Optional[type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         """Async context manager exit."""
         await self.close()
@@ -295,7 +295,7 @@ class MoogoClient:
 
         return False
 
-    def _record_device_failure(self, device_id: str, error: Optional[Exception] = None) -> None:
+    def _record_device_failure(self, device_id: str, error: Exception | None = None) -> None:
         """
         Record a device failure for circuit breaker logic.
 
@@ -451,7 +451,7 @@ class MoogoClient:
             return False
 
     async def authenticate(
-        self, email: Optional[str] = None, password: Optional[str] = None
+        self, email: str | None = None, password: str | None = None
     ) -> dict[str, Any]:
         """
         Authenticate with Moogo API.
@@ -616,7 +616,7 @@ class MoogoClient:
         return DeviceStatus.from_dict(response.get("data", {}))
 
     @retry_with_backoff(max_attempts=5, initial_delay=2.0, backoff_factor=2.0)
-    async def start_spray(self, device_id: str, mode: Optional[str] = None) -> bool:
+    async def start_spray(self, device_id: str, mode: str | None = None) -> bool:
         """
         Start device spray/misting with retry logic and circuit breaker.
 
@@ -799,11 +799,11 @@ class MoogoClient:
         self,
         device_id: str,
         schedule_id: str,
-        hour: Optional[int] = None,
-        minute: Optional[int] = None,
-        duration: Optional[int] = None,
-        repeat_set: Optional[str] = None,
-        enabled: Optional[bool] = None,
+        hour: int | None = None,
+        minute: int | None = None,
+        duration: int | None = None,
+        repeat_set: str | None = None,
+        enabled: bool | None = None,
     ) -> bool:
         """
         Update an existing schedule.
@@ -978,8 +978,8 @@ class MoogoClient:
     async def get_device_logs(
         self,
         device_id: str,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
+        start_date: str | None = None,
+        end_date: str | None = None,
         page: int = 1,
         page_size: int = 20,
     ) -> dict[str, Any]:

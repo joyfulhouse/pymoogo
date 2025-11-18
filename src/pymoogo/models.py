@@ -1,7 +1,7 @@
 """Data models for Moogo API."""
 
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 
 @dataclass
@@ -19,8 +19,8 @@ class DeviceStatus:
     water_level: int
     mix_ratio: int
     firmware: str
-    latest_spraying_duration: Optional[int] = None
-    latest_spraying_end: Optional[int] = None
+    latest_spraying_duration: int | None = None
+    latest_spraying_end: int | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "DeviceStatus":
