@@ -17,12 +17,12 @@ Python client library for the Moogo smart spray system API.
 ## Installation
 
 ```bash
-pip install pymoogo
+uv pip install pymoogo
 ```
 
 For development:
 ```bash
-pip install pymoogo[dev]
+uv pip install pymoogo[dev]
 ```
 
 ## Quick Start
@@ -313,19 +313,16 @@ git clone https://github.com/joyfulhouse/pymoogo.git
 cd pymoogo
 
 # Install in development mode
-pip install -e .[dev]
+uv sync --all-extras
 
 # Run tests
-pytest
-
-# Format code
-black pymoogo
+uv run pytest
 
 # Type checking
-mypy pymoogo
+uv run mypy src/pymoogo
 
 # Linting
-ruff pymoogo
+uv run ruff check .
 ```
 
 ## API Documentation

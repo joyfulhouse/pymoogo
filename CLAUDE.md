@@ -37,23 +37,35 @@ See `PROJECT_STRUCTURE.md` for complete structure documentation.
 
 ## Development Commands
 
+**IMPORTANT: This project uses `uv` as the package manager (not pip).**
+
 **Install for development:**
 ```bash
-pip install -e .
+uv sync --all-extras
 ```
 
 **Running examples:**
 ```bash
-python examples/basic_usage.py
-python examples/test_client.py
+uv run python examples/basic_usage.py
+uv run python examples/test_client.py
 ```
 
 **Testing:**
 ```bash
-cd tests
-pytest -v              # All tests
-pytest -m unit         # Unit tests only
-pytest -m integration  # Integration tests (requires .env)
+uv run pytest -v              # All tests
+uv run pytest -m unit         # Unit tests only
+uv run pytest -m integration  # Integration tests (requires .env)
+```
+
+**Linting and type checking:**
+```bash
+uv run ruff check .           # Linting
+uv run mypy src/pymoogo       # Type checking
+```
+
+**Building:**
+```bash
+uv build                      # Build wheel and source distribution
 ```
 
 ## Code Architecture
