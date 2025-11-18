@@ -59,7 +59,7 @@ jobs:
         env:
           MOOGO_EMAIL: ${{ secrets.MOOGO_EMAIL }}
           MOOGO_PASSWORD: ${{ secrets.MOOGO_PASSWORD }}
-          MOOGO_TEST_DEVICE_ID: ${{ secrets.MOOGO_TEST_DEVICE_ID }}
+          # MOOGO_TEST_DEVICE_ID is optional - tests will auto-discover first device
         run: |
           pytest tests/ -v -m integration --cov=src/pymoogo --cov-append --cov-report=xml --cov-report=term
 
