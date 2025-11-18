@@ -42,13 +42,16 @@ def base_url() -> str:
     return os.getenv("MOOGO_BASE_URL", "https://api.moogo.com")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 async def authenticated_client() -> Any:
     """
-    Shared authenticated client for integration tests (session scope).
+    Shared authenticated client for integration tests (module scope).
 
     This reduces authentication calls to minimize daily login limit usage.
-    Only one authentication per test session instead of per test.
+    Only one authentication per test module instead of per test.
+
+    Note: Changed from session to module scope to work properly with pytest-asyncio.
+    Session-scoped async fixtures don't work well across different event loops.
     """
     from pymoogo import MoogoClient  # type: ignore[import-untyped]
 
