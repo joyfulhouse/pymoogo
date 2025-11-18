@@ -96,6 +96,10 @@ jobs:
         env:
           MOOGO_EMAIL: ${{ secrets.MOOGO_EMAIL }}
           MOOGO_PASSWORD: ${{ secrets.MOOGO_PASSWORD }}
+          # Cached session to prevent rate limit exhaustion (optional)
+          MOOGO_CACHED_TOKEN: ${{ secrets.MOOGO_CACHED_TOKEN }}
+          MOOGO_CACHED_USER_ID: ${{ secrets.MOOGO_CACHED_USER_ID }}
+          MOOGO_CACHED_EXPIRES: ${{ secrets.MOOGO_CACHED_EXPIRES }}
           # MOOGO_TEST_DEVICE_ID is optional - tests will auto-discover first device
         run: uv run pytest tests/ -v -m integration --cov=src/pymoogo --cov-report=xml --cov-report=term
 

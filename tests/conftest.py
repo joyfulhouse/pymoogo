@@ -52,12 +52,16 @@ async def authenticated_client() -> Any:
     Module-scoped async fixtures cause "Timeout context manager should be used inside a task"
     errors when the session is used across different event loops.
 
-    Each test gets its own client/session/event loop, which unfortunately means one
-    authentication call per test. To prevent rate limit exhaustion:
-    - Tests should be run selectively during development
-    - CI/CD should limit integration test runs (e.g., admin-gated or nightly)
-    - Consider using session injection with cached tokens for future optimization
+    Session Caching:
+    To prevent rate limit exhaustion, we cache the authentication session in .env:
+    - MOOGO_CACHED_TOKEN: The authentication token
+    - MOOGO_CACHED_USER_ID: The user ID
+    - MOOGO_CACHED_EXPIRES: Token expiration timestamp
+
+    If cached session is valid, we reuse it. Otherwise, we authenticate and cache the new session.
     """
+    from datetime import datetime
+
     from pymoogo import MoogoClient  # type: ignore[import-untyped]
 
     email = os.getenv("MOOGO_EMAIL")
@@ -68,9 +72,73 @@ async def authenticated_client() -> Any:
             "Integration tests require MOOGO_EMAIL and MOOGO_PASSWORD environment variables"
         )
 
-    async with MoogoClient(email=email, password=password) as client:
-        await client.authenticate()
-        yield client
+    # Try to use cached session first
+    cached_token = os.getenv("MOOGO_CACHED_TOKEN")
+    cached_user_id = os.getenv("MOOGO_CACHED_USER_ID")
+    cached_expires = os.getenv("MOOGO_CACHED_EXPIRES")
+
+    client = MoogoClient(email=email, password=password)
+
+    # Check if cached session is still valid
+    session_valid = False
+    if cached_token and cached_user_id and cached_expires:
+        try:
+            expires_at = datetime.fromisoformat(cached_expires)
+            if expires_at > datetime.now():
+                # Inject cached session
+                client._token = cached_token
+                client._user_id = cached_user_id
+                client._token_expires = expires_at
+                session_valid = True
+        except Exception:
+            pass  # Invalid cached session, will reauthenticate
+
+    # Authenticate if no valid cached session
+    if not session_valid:
+        async with client:
+            await client.authenticate()
+
+            # Cache the session for future tests
+            session_data = client.get_auth_session()
+            _update_env_cache(
+                session_data["token"], session_data["user_id"], session_data["expires_at"]
+            )
+
+            yield client
+    else:
+        # Use cached session
+        async with client:
+            yield client
+
+
+def _update_env_cache(token: str, user_id: str, expires_at: str | None) -> None:
+    """Update .env file with cached session data."""
+    import re
+
+    env_path = ".env"
+
+    # Read current .env content
+    if os.path.exists(env_path):
+        with open(env_path) as f:
+            content = f.read()
+    else:
+        content = ""
+
+    # Update or add cache variables
+    def update_var(content: str, key: str, value: str) -> str:
+        pattern = rf"^{key}=.*$"
+        replacement = f"{key}={value}"
+        if re.search(pattern, content, re.MULTILINE):
+            return re.sub(pattern, replacement, content, flags=re.MULTILINE)
+        return content + f"\n{replacement}"
+
+    content = update_var(content, "MOOGO_CACHED_TOKEN", token)
+    content = update_var(content, "MOOGO_CACHED_USER_ID", user_id)
+    content = update_var(content, "MOOGO_CACHED_EXPIRES", expires_at or "")
+
+    # Write back to .env
+    with open(env_path, "w") as f:
+        f.write(content)
 
 
 @pytest.fixture
