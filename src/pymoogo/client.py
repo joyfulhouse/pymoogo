@@ -10,7 +10,7 @@ from types import TracebackType
 from typing import Any, TypeVar
 
 import aiohttp
-from aiohttp import ClientSession, ClientTimeout
+from aiohttp import ClientSession
 
 from pymoogo.exceptions import (
     MoogoAPIError,
@@ -192,7 +192,7 @@ class MoogoClient:
         self.base_url = base_url.rstrip("/")
         self.email = email
         self.password = password
-        self.timeout = ClientTimeout(total=timeout)
+        self.timeout_seconds = timeout  # Store timeout value, create ClientTimeout per-request
 
         # Session management
         self._session = session
@@ -243,9 +243,14 @@ class MoogoClient:
 
     @property
     def session(self) -> ClientSession:
-        """Get or create aiohttp session."""
+        """
+        Get or create aiohttp session.
+
+        Python 3.14 Compatibility: Don't pass timeout to ClientSession constructor
+        to avoid event loop context issues. Timeout is applied per-request instead.
+        """
         if self._session is None:
-            self._session = aiohttp.ClientSession(timeout=self.timeout)
+            self._session = aiohttp.ClientSession()
         return self._session
 
     @property
@@ -394,9 +399,10 @@ class MoogoClient:
         if "headers" in kwargs:
             headers.update(kwargs.pop("headers"))
 
-        # Apply timeout per-request (Python 3.14 compatibility)
-        if "timeout" not in kwargs:
-            kwargs["timeout"] = self.timeout
+        # Apply timeout per-request (Python 3.14 + pytest-asyncio compatibility)
+        # Create timeout in async context to avoid event loop issues
+        if "timeout" not in kwargs and self.timeout_seconds:
+            kwargs["timeout"] = aiohttp.ClientTimeout(total=self.timeout_seconds)
 
         try:
             async with self.session.request(method, url, headers=headers, **kwargs) as response:

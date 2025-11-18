@@ -42,16 +42,21 @@ def base_url() -> str:
     return os.getenv("MOOGO_BASE_URL", "https://api.moogo.com")
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="function")
 async def authenticated_client() -> Any:
     """
-    Shared authenticated client for integration tests (module scope).
+    Authenticated client for integration tests (function scope).
 
-    This reduces authentication calls to minimize daily login limit usage.
-    Only one authentication per test module instead of per test.
+    Python 3.14 Compatibility:
+    Function scope is required due to aiohttp timeout context manager changes in Python 3.14.
+    Module-scoped async fixtures cause "Timeout context manager should be used inside a task"
+    errors when the session is used across different event loops.
 
-    Note: Changed from session to module scope to work properly with pytest-asyncio.
-    Session-scoped async fixtures don't work well across different event loops.
+    Each test gets its own client/session/event loop, which unfortunately means one
+    authentication call per test. To prevent rate limit exhaustion:
+    - Tests should be run selectively during development
+    - CI/CD should limit integration test runs (e.g., admin-gated or nightly)
+    - Consider using session injection with cached tokens for future optimization
     """
     from pymoogo import MoogoClient  # type: ignore[import-untyped]
 

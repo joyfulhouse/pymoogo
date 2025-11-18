@@ -109,9 +109,7 @@ def retry_with_backoff(
 
                     # Don't retry on rate limit errors (24-hour lockout)
                     if isinstance(e, MoogoRateLimitError):
-                        _LOGGER.error(
-                            f"Rate limit error in {func.__name__}, not retrying: {e}"
-                        )
+                        _LOGGER.error(f"Rate limit error in {func.__name__}, not retrying: {e}")
                         raise
 
                     # Check if this is a device offline error (first time only)
@@ -134,11 +132,7 @@ def retry_with_backoff(
 
                     # Don't retry if this is the last attempt
                     if attempt >= attempts:
-                        error_type = (
-                            "device offline error"
-                            if is_device_offline_error
-                            else "error"
-                        )
+                        error_type = "device offline error" if is_device_offline_error else "error"
                         _LOGGER.error(
                             f"Max retry attempts ({attempts}) reached for {func.__name__} "
                             f"({error_type}): {e}"
@@ -161,9 +155,7 @@ def retry_with_backoff(
 
                 except Exception as e:
                     # Don't retry on unexpected exceptions
-                    _LOGGER.error(
-                        f"Unexpected error in {func.__name__}, not retrying: {e}"
-                    )
+                    _LOGGER.error(f"Unexpected error in {func.__name__}, not retrying: {e}")
                     raise
 
             # If we've exhausted all retries, raise the last exception
@@ -274,9 +266,7 @@ class MoogoClient:
         # Circuit breaker tracking for persistently offline devices
         self._device_circuit_breakers: dict[str, dict[str, Any]] = {}
         self._circuit_breaker_threshold: int = 5  # Failures before opening circuit
-        self._circuit_breaker_timeout: timedelta = timedelta(
-            minutes=5
-        )  # Cooldown period
+        self._circuit_breaker_timeout: timedelta = timedelta(minutes=5)  # Cooldown period
 
     async def __aenter__(self) -> "MoogoClient":
         """Async context manager entry."""
@@ -466,9 +456,7 @@ class MoogoClient:
             headers.update(kwargs.pop("headers"))
 
         try:
-            async with self.session.request(
-                method, url, headers=headers, **kwargs
-            ) as response:
+            async with self.session.request(method, url, headers=headers, **kwargs) as response:
                 if response.status != 200:
                     if (
                         response.status == 401
@@ -506,9 +494,7 @@ class MoogoClient:
                     elif response.status == 401:
                         raise MoogoAuthError(f"Unauthorized: {response.status}")
                     else:
-                        raise MoogoAPIError(
-                            f"HTTP {response.status}: {response.reason}"
-                        )
+                        raise MoogoAPIError(f"HTTP {response.status}: {response.reason}")
 
                 data = await response.json()
 
@@ -543,9 +529,7 @@ class MoogoClient:
 
                     # Try to reauthenticate
                     if await self.authenticate(self.email, self.password):
-                        _LOGGER.info(
-                            "Reauthentication successful, retrying original request..."
-                        )
+                        _LOGGER.info("Reauthentication successful, retrying original request...")
                         # Retry the original request with new token (but don't retry again)
                         return await self._request(
                             method, endpoint, authenticated, retry_auth=False, **kwargs
@@ -563,9 +547,7 @@ class MoogoClient:
         except aiohttp.ClientError as e:
             raise MoogoAPIError(f"Request failed: {e}") from e
 
-    async def authenticate(
-        self, email: str | None = None, password: str | None = None
-    ) -> bool:
+    async def authenticate(self, email: str | None = None, password: str | None = None) -> bool:
         """
         Authenticate with Moogo API.
 
@@ -721,8 +703,7 @@ class MoogoClient:
         # Check circuit breaker - if device is persistently offline, fail fast
         if self._is_circuit_open(device_id):
             time_remaining = self._circuit_breaker_timeout - (
-                datetime.now()
-                - self._device_circuit_breakers[device_id]["last_failure"]
+                datetime.now() - self._device_circuit_breakers[device_id]["last_failure"]
             )
             raise MoogoDeviceError(
                 f"Device {device_id} circuit breaker is open (persistently offline). "
@@ -763,9 +744,7 @@ class MoogoClient:
             success = response.get("data", {}).get("code") == 0
 
             if success:
-                _LOGGER.info(
-                    f"Started spray for device {device_id} with mode: {mode or 'default'}"
-                )
+                _LOGGER.info(f"Started spray for device {device_id} with mode: {mode or 'default'}")
                 # Record success for circuit breaker
                 self._record_device_success(device_id)
 
@@ -816,8 +795,7 @@ class MoogoClient:
         # Check circuit breaker - if device is persistently offline, fail fast
         if self._is_circuit_open(device_id):
             time_remaining = self._circuit_breaker_timeout - (
-                datetime.now()
-                - self._device_circuit_breakers[device_id]["last_failure"]
+                datetime.now() - self._device_circuit_breakers[device_id]["last_failure"]
             )
             raise MoogoDeviceError(
                 f"Device {device_id} circuit breaker is open (persistently offline). "
@@ -878,9 +856,7 @@ class MoogoClient:
         Returns:
             List of liquid type dictionaries
         """
-        response = await self._request(
-            "GET", self.ENDPOINTS["liquid_types"], authenticated=False
-        )
+        response = await self._request("GET", self.ENDPOINTS["liquid_types"], authenticated=False)
         return response.get("data", [])
 
     async def get_recommended_schedules(self) -> list[dict[str, Any]]:
@@ -890,9 +866,7 @@ class MoogoClient:
         Returns:
             List of schedule dictionaries
         """
-        response = await self._request(
-            "GET", self.ENDPOINTS["schedules"], authenticated=False
-        )
+        response = await self._request("GET", self.ENDPOINTS["schedules"], authenticated=False)
         return response.get("data", {}).get("items", [])
 
     async def get_device_schedules(self, device_id: str) -> dict[str, Any]:
@@ -1107,9 +1081,7 @@ class MoogoClient:
                     await asyncio.sleep(duration + 5)  # Extra buffer
                     await self.delete_schedule(device_id, schedule_id)
 
-            _LOGGER.info(
-                f"Started spray with custom duration {duration}s for device {device_id}"
-            )
+            _LOGGER.info(f"Started spray with custom duration {duration}s for device {device_id}")
             return True
 
         except Exception as e:
@@ -1256,9 +1228,7 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        endpoint = self.ENDPOINTS["device_schedules_enable_all"].format(
-            device_id=device_id
-        )
+        endpoint = self.ENDPOINTS["device_schedules_enable_all"].format(device_id=device_id)
 
         try:
             response = await self._request("PUT", endpoint)
@@ -1285,9 +1255,7 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        endpoint = self.ENDPOINTS["device_schedules_disable_all"].format(
-            device_id=device_id
-        )
+        endpoint = self.ENDPOINTS["device_schedules_disable_all"].format(device_id=device_id)
 
         try:
             response = await self._request("PUT", endpoint)
@@ -1318,9 +1286,7 @@ class MoogoClient:
         response = await self._request("GET", endpoint)
         return response.get("data", {})
 
-    async def set_device_config(
-        self, device_id: str, config: dict[str, Any]
-    ) -> bool:
+    async def set_device_config(self, device_id: str, config: dict[str, Any]) -> bool:
         """
         Update device configuration settings.
 
