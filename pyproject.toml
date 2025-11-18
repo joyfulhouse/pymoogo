@@ -9,6 +9,7 @@ description = "Python client library for Moogo smart spray system API"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     {name = "Bryan Li", email = "bryan.li@gmail.com"}
 ]
