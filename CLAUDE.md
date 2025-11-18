@@ -344,7 +344,6 @@ All high-value features for Home Assistant integration are now implemented:
 - Keep the root directory organized by placing documentation in the `docs/` subdirectory
 - Main documentation files:
   - `docs/PUBLISHING.md` - PyPI publishing guide
-  - `docs/NEXT_STEPS.md` - Setup checklist
   - `docs/QUICKSTART.md` - Quick start guide
   - `docs/SESSION_INJECTION.md` - Session injection documentation
   - `docs/TYPE_SAFETY.md` - Type safety guide
