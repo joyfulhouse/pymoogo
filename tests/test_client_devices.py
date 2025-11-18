@@ -105,9 +105,7 @@ class TestDeviceOperations:
         assert status.is_online is True
 
     @pytest.mark.asyncio
-    async def test_get_device_status_not_authenticated(
-        self, client: MoogoClient
-    ) -> None:
+    async def test_get_device_status_not_authenticated(self, client: MoogoClient) -> None:
         """Test getting device status without authentication."""
         with pytest.raises(MoogoAuthError, match="Authentication required"):
             await client.get_device_status("device_123")

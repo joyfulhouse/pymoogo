@@ -98,11 +98,7 @@ class TestRetryDecorator:
         """Test retry only retries specified exceptions."""
         call_count = 0
 
-        @retry_with_backoff(
-            max_attempts=3,
-            initial_delay=0.01,
-            retry_on=(MoogoDeviceError,)
-        )
+        @retry_with_backoff(max_attempts=3, initial_delay=0.01, retry_on=(MoogoDeviceError,))
         async def wrong_exception():
             nonlocal call_count
             call_count += 1
@@ -138,7 +134,7 @@ class TestRetryDecorator:
             max_attempts=3,
             initial_delay=0.1,
             backoff_factor=2.0,
-            jitter=False  # Disable jitter for predictable testing
+            jitter=False,  # Disable jitter for predictable testing
         )
         async def track_delays():
             call_times.append(asyncio.get_event_loop().time())
@@ -168,7 +164,7 @@ class TestRequestErrorHandling:
         """Test request handles success response code."""
         client = MoogoClient(**mock_credentials)
 
-        with patch.object(client, '_session') as mock_session:
+        with patch.object(client, "_session") as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 200
             mock_response.json = AsyncMock(return_value=mock_api_response_success)
@@ -189,7 +185,7 @@ class TestRequestErrorHandling:
             "data": None,
         }
 
-        with patch.object(client, '_session') as mock_session:
+        with patch.object(client, "_session") as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 200
             mock_response.json = AsyncMock(return_value=error_response)
@@ -210,7 +206,7 @@ class TestRequestErrorHandling:
             "data": None,
         }
 
-        with patch.object(client, '_session') as mock_session:
+        with patch.object(client, "_session") as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 200
             mock_response.json = AsyncMock(return_value=error_response)
@@ -231,7 +227,7 @@ class TestRequestErrorHandling:
             "data": None,
         }
 
-        with patch.object(client, '_session') as mock_session:
+        with patch.object(client, "_session") as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 200
             mock_response.json = AsyncMock(return_value=error_response)
@@ -246,7 +242,7 @@ class TestRequestErrorHandling:
         """Test request handles HTTP error status codes."""
         client = MoogoClient(**mock_credentials)
 
-        with patch.object(client, '_session') as mock_session:
+        with patch.object(client, "_session") as mock_session:
             mock_response = AsyncMock()
             mock_response.status = 404
             mock_response.reason = "Not Found"

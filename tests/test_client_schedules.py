@@ -43,16 +43,17 @@ class TestScheduleOperations:
         assert schedules[0].minute == 30
 
     @pytest.mark.asyncio
-    async def test_get_device_schedules_not_authenticated(
-        self, client: MoogoClient
-    ) -> None:
+    async def test_get_device_schedules_not_authenticated(self, client: MoogoClient) -> None:
         """Test getting schedules without authentication."""
         with pytest.raises(MoogoAuthError, match="Authentication required"):
             await client.get_device_schedules("device_123")
 
     @pytest.mark.asyncio
     async def test_create_schedule_success(
-        self, authenticated_client: MoogoClient, mock_session: AsyncMock, create_response: Callable[[int, dict[str, Any]], MagicMock]
+        self,
+        authenticated_client: MoogoClient,
+        mock_session: AsyncMock,
+        create_response: Callable[[int, dict[str, Any]], MagicMock],
     ) -> None:
         """Test creating a schedule successfully."""
         response = {
@@ -79,13 +80,14 @@ class TestScheduleOperations:
     async def test_create_schedule_not_authenticated(self, client: MoogoClient) -> None:
         """Test creating schedule without authentication."""
         with pytest.raises(MoogoAuthError, match="Authentication required"):
-            await client.create_schedule(
-                device_id="device_123", hour=8, minute=30, duration=60
-            )
+            await client.create_schedule(device_id="device_123", hour=8, minute=30, duration=60)
 
     @pytest.mark.asyncio
     async def test_update_schedule_success(
-        self, authenticated_client: MoogoClient, mock_session: AsyncMock, create_response: Callable[[int, dict[str, Any]], MagicMock]
+        self,
+        authenticated_client: MoogoClient,
+        mock_session: AsyncMock,
+        create_response: Callable[[int, dict[str, Any]], MagicMock],
     ) -> None:
         """Test updating a schedule successfully."""
         response = {
@@ -109,7 +111,10 @@ class TestScheduleOperations:
 
     @pytest.mark.asyncio
     async def test_update_schedule_partial(
-        self, authenticated_client: MoogoClient, mock_session: AsyncMock, create_response: Callable[[int, dict[str, Any]], MagicMock]
+        self,
+        authenticated_client: MoogoClient,
+        mock_session: AsyncMock,
+        create_response: Callable[[int, dict[str, Any]], MagicMock],
     ) -> None:
         """Test partially updating a schedule."""
         response = {
@@ -131,9 +136,7 @@ class TestScheduleOperations:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_update_schedule_not_authenticated(
-        self, client: MoogoClient
-    ) -> None:
+    async def test_update_schedule_not_authenticated(self, client: MoogoClient) -> None:
         """Test updating schedule without authentication."""
         with pytest.raises(MoogoAuthError, match="Authentication required"):
             await client.update_schedule(
@@ -142,7 +145,10 @@ class TestScheduleOperations:
 
     @pytest.mark.asyncio
     async def test_delete_schedule_success(
-        self, authenticated_client: MoogoClient, mock_session: AsyncMock, create_response: Callable[[int, dict[str, Any]], MagicMock]
+        self,
+        authenticated_client: MoogoClient,
+        mock_session: AsyncMock,
+        create_response: Callable[[int, dict[str, Any]], MagicMock],
     ) -> None:
         """Test deleting a schedule successfully."""
         response = {
@@ -161,14 +167,10 @@ class TestScheduleOperations:
         assert result is True
 
     @pytest.mark.asyncio
-    async def test_delete_schedule_not_authenticated(
-        self, client: MoogoClient
-    ) -> None:
+    async def test_delete_schedule_not_authenticated(self, client: MoogoClient) -> None:
         """Test deleting schedule without authentication."""
         with pytest.raises(MoogoAuthError, match="Authentication required"):
-            await client.delete_schedule(
-                device_id="device_123", schedule_id="schedule_123"
-            )
+            await client.delete_schedule(device_id="device_123", schedule_id="schedule_123")
 
 
 class TestPublicEndpoints:
@@ -176,7 +178,10 @@ class TestPublicEndpoints:
 
     @pytest.mark.asyncio
     async def test_get_liquid_types_success(
-        self, client: MoogoClient, mock_session: AsyncMock, create_response: Callable[[int, dict[str, Any]], MagicMock]
+        self,
+        client: MoogoClient,
+        mock_session: AsyncMock,
+        create_response: Callable[[int, dict[str, Any]], MagicMock],
     ) -> None:
         """Test getting liquid types from public endpoint."""
         response = {

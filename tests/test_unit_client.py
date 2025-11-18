@@ -186,8 +186,8 @@ class TestCircuitBreaker:
         assert client._is_circuit_open("device_123")
 
         # Manually set last failure to past timeout
-        client._device_circuit_breakers["device_123"]["last_failure"] = (
-            datetime.now() - timedelta(seconds=2)
+        client._device_circuit_breakers["device_123"]["last_failure"] = datetime.now() - timedelta(
+            seconds=2
         )
 
         # Circuit should now be closed
@@ -257,9 +257,7 @@ class TestEndpointConfiguration:
         client = MoogoClient(**mock_credentials)
 
         # Test device endpoint formatting
-        device_endpoint = client.ENDPOINTS["device_detail"].format(
-            device_id="test_device_123"
-        )
+        device_endpoint = client.ENDPOINTS["device_detail"].format(device_id="test_device_123")
         assert device_endpoint == "v1/devices/test_device_123"
 
         # Test schedule endpoint formatting
