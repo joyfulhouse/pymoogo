@@ -351,3 +351,9 @@ All high-value features for Home Assistant integration are now implemented:
   - `docs/PROJECT_STRUCTURE.md` - Project structure documentation
   - `docs/VERIFICATION_REPORT.md` - Implementation verification report
   - `docs/openapi.yaml` - OpenAPI specification
+
+### Documentation Guidelines
+
+- Update all documentation before any commit, push, or creating a PR
+- Remove unnecessary documentation (e.g., setup guides) when all steps are completed
+- Keep documentation focused and relevant to current project state
