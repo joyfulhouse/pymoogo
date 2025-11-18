@@ -18,8 +18,7 @@ jobs:
   publish:
     name: Publish to ${{ github.event.inputs.environment || 'pypi' }}
     runs-on: ubuntu-latest
-    # Temporarily removed environment to test with "(Any)" pending publisher
-    # environment: ${{ github.event.inputs.environment || 'pypi' }}
+    environment: ${{ github.event.inputs.environment || 'pypi' }}
     permissions:
       id-token: write  # Required for trusted publishing
       contents: read
