@@ -355,6 +355,7 @@ All high-value features for Home Assistant integration are now implemented:
 
 - Keep the root directory organized by placing documentation in the `docs/` subdirectory
 - Main documentation files:
+  - `docs/BRANCH_PROTECTION.md` - Branch protection and CI/CD configuration
   - `docs/PUBLISHING.md` - PyPI publishing guide
   - `docs/QUICKSTART.md` - Quick start guide
   - `docs/SESSION_INJECTION.md` - Session injection documentation
@@ -368,3 +369,14 @@ All high-value features for Home Assistant integration are now implemented:
 - Update all documentation before any commit, push, or creating a PR
 - Remove unnecessary documentation (e.g., setup guides) when all steps are completed
 - Keep documentation focused and relevant to current project state
+
+## Branch Protection and CI/CD
+
+The `main` branch is protected with strict requirements:
+
+- **Required status checks**: Lint, Unit Tests (3.13, 3.14), Integration Tests (3.13, 3.14), Build
+- **Integration tests require admin approval**: Use GitHub Environment `integration-tests` for gating
+- **Pull request reviews**: 1 approval required
+- **All conversations must be resolved**: Before merging
+
+See `docs/BRANCH_PROTECTION.md` for complete setup instructions and troubleshooting.
