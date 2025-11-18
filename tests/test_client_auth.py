@@ -1,7 +1,8 @@
 """Tests for MoogoClient authentication."""
 
+from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Any, Callable
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
