@@ -348,4 +348,6 @@ All high-value features for Home Assistant integration are now implemented:
   - `docs/QUICKSTART.md` - Quick start guide
   - `docs/SESSION_INJECTION.md` - Session injection documentation
   - `docs/TYPE_SAFETY.md` - Type safety guide
+  - `docs/PROJECT_STRUCTURE.md` - Project structure documentation
+  - `docs/VERIFICATION_REPORT.md` - Implementation verification report
   - `docs/openapi.yaml` - OpenAPI specification
