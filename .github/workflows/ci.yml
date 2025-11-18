@@ -93,6 +93,7 @@ jobs:
         run: uv sync --all-extras
 
       - name: Run integration tests
+        id: integration-tests
         env:
           MOOGO_EMAIL: ${{ secrets.MOOGO_EMAIL }}
           MOOGO_PASSWORD: ${{ secrets.MOOGO_PASSWORD }}
@@ -101,7 +102,51 @@ jobs:
           MOOGO_CACHED_USER_ID: ${{ secrets.MOOGO_CACHED_USER_ID }}
           MOOGO_CACHED_EXPIRES: ${{ secrets.MOOGO_CACHED_EXPIRES }}
           # MOOGO_TEST_DEVICE_ID is optional - tests will auto-discover first device
-        run: uv run pytest tests/ -v -m integration --cov=src/pymoogo --cov-report=xml --cov-report=term
+        run: |
+          uv run pytest tests/ -v -m integration --cov=src/pymoogo --cov-report=xml --cov-report=term
+
+          # Check if .env was updated with new cached session
+          if [ -f .env ]; then
+            echo "::notice::Session cache status: Check logs for authentication details"
+
+            # Export new cached values as outputs (masked for security)
+            if grep -q "MOOGO_CACHED_TOKEN" .env; then
+              CACHED_TOKEN=$(grep MOOGO_CACHED_TOKEN .env | cut -d'=' -f2)
+              CACHED_USER_ID=$(grep MOOGO_CACHED_USER_ID .env | cut -d'=' -f2)
+              CACHED_EXPIRES=$(grep MOOGO_CACHED_EXPIRES .env | cut -d'=' -f2)
+
+              echo "::add-mask::$CACHED_TOKEN"
+              echo "cached_token=$CACHED_TOKEN" >> $GITHUB_OUTPUT
+              echo "cached_user_id=$CACHED_USER_ID" >> $GITHUB_OUTPUT
+              echo "cached_expires=$CACHED_EXPIRES" >> $GITHUB_OUTPUT
+              echo "session_refreshed=true" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Update cached session secrets (requires PAT_TOKEN)
+        if: steps.integration-tests.outputs.session_refreshed == 'true' && github.event_name != 'pull_request' && secrets.PAT_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          echo "::warning::New session detected. Updating GitHub secrets..."
+
+          # Update secrets using gh CLI (requires PAT with repo permissions)
+          echo "${{ steps.integration-tests.outputs.cached_token }}" | gh secret set MOOGO_CACHED_TOKEN
+          echo "${{ steps.integration-tests.outputs.cached_user_id }}" | gh secret set MOOGO_CACHED_USER_ID
+          echo "${{ steps.integration-tests.outputs.cached_expires }}" | gh secret set MOOGO_CACHED_EXPIRES
+
+          echo "::notice::GitHub secrets updated successfully. Session valid until: ${{ steps.integration-tests.outputs.cached_expires }}"
+        continue-on-error: true
+
+      - name: Session refresh instructions
+        if: steps.integration-tests.outputs.session_refreshed == 'true' && (secrets.PAT_TOKEN == '' || failure())
+        run: |
+          echo "::warning::Session was refreshed but secrets could not be auto-updated."
+          echo "::notice::To update GitHub secrets manually, run locally:"
+          echo "  gh secret set MOOGO_CACHED_TOKEN --body \"\$(grep MOOGO_CACHED_TOKEN .env | cut -d'=' -f2)\""
+          echo "  gh secret set MOOGO_CACHED_USER_ID --body \"\$(grep MOOGO_CACHED_USER_ID .env | cut -d'=' -f2)\""
+          echo "  gh secret set MOOGO_CACHED_EXPIRES --body \"\$(grep MOOGO_CACHED_EXPIRES .env | cut -d'=' -f2)\""
+          echo "::notice::Or create a PAT_TOKEN secret with 'repo' scope for automatic updates."
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4

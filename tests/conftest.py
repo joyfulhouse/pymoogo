@@ -1,5 +1,6 @@
 """Pytest configuration and shared fixtures for Moogo API tests."""
 
+import logging
 import os
 from collections.abc import Callable
 from typing import Any
@@ -10,6 +11,8 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -89,13 +92,26 @@ async def authenticated_client() -> Any:
                 client._token = cached_token
                 client._user_id = cached_user_id
                 client._token_expires = expires_at
-                session_valid = True
-        except Exception:
+
+                # Verify session is actually valid by making a test request
+                async with client:
+                    try:
+                        await client.get_devices()  # Quick API test
+                        session_valid = True
+                        _LOGGER.info("Using cached session (valid)")
+                        yield client
+                        return
+                    except Exception as e:
+                        _LOGGER.warning(f"Cached session invalid: {e}. Re-authenticating...")
+                        session_valid = False
+        except Exception as e:
+            _LOGGER.warning(f"Failed to load cached session: {e}")
             pass  # Invalid cached session, will reauthenticate
 
     # Authenticate if no valid cached session
     if not session_valid:
         async with client:
+            _LOGGER.info("Authenticating with credentials (no valid cached session)")
             await client.authenticate()
 
             # Cache the session for future tests
@@ -103,11 +119,11 @@ async def authenticated_client() -> Any:
             _update_env_cache(
                 session_data["token"], session_data["user_id"], session_data["expires_at"]
             )
+            _LOGGER.info(
+                f"New session cached (expires: {session_data['expires_at']}). "
+                "Update GitHub secrets if running in CI."
+            )
 
-            yield client
-    else:
-        # Use cached session
-        async with client:
             yield client
 
 
