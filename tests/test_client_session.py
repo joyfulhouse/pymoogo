@@ -22,9 +22,7 @@ class TestSessionInjection:
 
     def test_client_with_session_injection(self, mock_session: AsyncMock) -> None:
         """Test client uses injected session."""
-        client = MoogoClient(
-            email="test@example.com", password="password", session=mock_session
-        )
+        client = MoogoClient(email="test@example.com", password="password", session=mock_session)
 
         assert client._session is mock_session
         assert client._session_owner is False
@@ -37,9 +35,7 @@ class TestSessionInjection:
         assert client1.has_injected_session is False
 
         # With injection
-        client2 = MoogoClient(
-            email="test@example.com", password="password", session=mock_session
-        )
+        client2 = MoogoClient(email="test@example.com", password="password", session=mock_session)
         assert client2.has_injected_session is True
 
     @pytest.mark.asyncio
@@ -57,13 +53,9 @@ class TestSessionInjection:
         assert client._session is None
 
     @pytest.mark.asyncio
-    async def test_close_with_session_injection(
-        self, mock_session: AsyncMock
-    ) -> None:
+    async def test_close_with_session_injection(self, mock_session: AsyncMock) -> None:
         """Test close() with injected session."""
-        client = MoogoClient(
-            email="test@example.com", password="password", session=mock_session
-        )
+        client = MoogoClient(email="test@example.com", password="password", session=mock_session)
 
         # Close should NOT close injected session
         await client.close()
@@ -86,13 +78,9 @@ class TestSessionInjection:
         assert client._session is None
 
     @pytest.mark.asyncio
-    async def test_context_manager_with_injection(
-        self, mock_session: AsyncMock
-    ) -> None:
+    async def test_context_manager_with_injection(self, mock_session: AsyncMock) -> None:
         """Test context manager with injected session."""
-        client = MoogoClient(
-            email="test@example.com", password="password", session=mock_session
-        )
+        client = MoogoClient(email="test@example.com", password="password", session=mock_session)
 
         async with client as c:
             assert c._session is mock_session
@@ -119,9 +107,7 @@ class TestContextManager:
     @pytest.mark.asyncio
     async def test_context_manager_exit(self, mock_session: AsyncMock) -> None:
         """Test async context manager __aexit__."""
-        client = MoogoClient(
-            email="test@example.com", password="password", session=mock_session
-        )
+        client = MoogoClient(email="test@example.com", password="password", session=mock_session)
 
         await client.__aenter__()
         await client.__aexit__(None, None, None)
@@ -161,13 +147,9 @@ class TestSessionProperty:
             assert isinstance(session, aiohttp.ClientSession)
             assert client._session is session
 
-    def test_session_property_returns_injected(
-        self, mock_session: AsyncMock
-    ) -> None:
+    def test_session_property_returns_injected(self, mock_session: AsyncMock) -> None:
         """Test session property returns injected session."""
-        client = MoogoClient(
-            email="test@example.com", password="password", session=mock_session
-        )
+        client = MoogoClient(email="test@example.com", password="password", session=mock_session)
 
         assert client.session is mock_session
 

@@ -11,11 +11,8 @@ import pytest
 
 from pymoogo import MoogoAuthError, MoogoClient
 
-# Skip all integration tests if credentials not provided
-pytestmark = pytest.mark.skipif(
-    not os.getenv("MOOGO_EMAIL") or not os.getenv("MOOGO_PASSWORD"),
-    reason="Integration tests require MOOGO_EMAIL and MOOGO_PASSWORD in .env"
-)
+# Integration tests marker
+pytestmark = pytest.mark.integration
 
 
 @pytest.mark.integration
@@ -27,22 +24,20 @@ class TestAuthentication:
     async def test_login_success(self, real_credentials):
         """Test successful login with real credentials."""
         async with MoogoClient(
-            email=real_credentials["email"],
-            password=real_credentials["password"]
+            email=real_credentials["email"], password=real_credentials["password"]
         ) as client:
-            success = await client.authenticate()
+            auth_data = await client.authenticate()
 
-            assert success is True
+            assert isinstance(auth_data, dict)
+            assert "token" in auth_data
+            assert "user_id" in auth_data
             assert client.is_authenticated
             assert client._token is not None
             assert client._user_id is not None
 
     async def test_login_invalid_credentials(self):
         """Test login with invalid credentials."""
-        async with MoogoClient(
-            email="invalid@example.com",
-            password="wrong_password"
-        ) as client:
+        async with MoogoClient(email="invalid@example.com", password="wrong_password") as client:
             with pytest.raises(MoogoAuthError):
                 await client.authenticate()
 
@@ -83,10 +78,10 @@ class TestDeviceDiscovery:
             # Get device status
             status = await client.get_device_status(device_id)
 
-            assert status["deviceId"] == device_id
-            assert "onlineStatus" in status
-            assert "runStatus" in status
-            assert "firmware" in status
+            assert status.device_id == device_id
+            assert hasattr(status, "online_status")
+            assert hasattr(status, "run_status")
+            assert hasattr(status, "firmware")
 
 
 @pytest.mark.integration
@@ -152,10 +147,7 @@ class TestDeviceLogs:
 
             # Get logs for last 7 days
             today = datetime.now().strftime("%Y-%m-%d")
-            logs = await client.get_device_logs(
-                device_id,
-                end_date=today
-            )
+            logs = await client.get_device_logs(device_id, end_date=today)
 
             assert isinstance(logs, dict)
 
@@ -183,9 +175,7 @@ class TestScheduleManagement:
             # Get schedules
             schedules = await client.get_device_schedules(device_id)
 
-            assert isinstance(schedules, dict)
-            if "items" in schedules:
-                assert isinstance(schedules["items"], list)
+            assert isinstance(schedules, list)
 
     async def test_create_and_delete_schedule(self, real_credentials, test_device_id):
         """Test creating and deleting a schedule."""
@@ -207,25 +197,24 @@ class TestScheduleManagement:
                 hour=10,
                 minute=30,
                 duration=60,
-                repeat_set="1,2,3,4,5"  # Weekdays
+                repeat_set="1,2,3,4,5",  # Weekdays
             )
 
             assert success is True
 
             # Get schedules to find the one we created
             schedules = await client.get_device_schedules(device_id)
-            schedule_items = schedules.get("items", [])
 
             # Find our test schedule
             test_schedule = None
-            for schedule in schedule_items:
-                if schedule["hour"] == 10 and schedule["minute"] == 30:
+            for schedule in schedules:
+                if schedule.hour == 10 and schedule.minute == 30:
                     test_schedule = schedule
                     break
 
             if test_schedule:
                 # Delete the schedule
-                schedule_id = test_schedule["id"]
+                schedule_id = test_schedule.id
                 success = await client.delete_schedule(device_id, schedule_id)
                 assert success is True
 
@@ -246,12 +235,11 @@ class TestScheduleManagement:
 
             # Get existing schedules
             schedules = await client.get_device_schedules(device_id)
-            schedule_items = schedules.get("items", [])
 
-            if len(schedule_items) == 0:
+            if len(schedules) == 0:
                 pytest.skip("No schedules available for testing")
 
-            schedule_id = schedule_items[0]["id"]
+            schedule_id = schedules[0].id
 
             # Disable schedule
             success = await client.disable_schedule(device_id, schedule_id)
@@ -278,12 +266,11 @@ class TestScheduleManagement:
 
             # Get existing schedules
             schedules = await client.get_device_schedules(device_id)
-            schedule_items = schedules.get("items", [])
 
-            if len(schedule_items) == 0:
+            if len(schedules) == 0:
                 pytest.skip("No schedules available for testing")
 
-            schedule_id = schedule_items[0]["id"]
+            schedule_id = schedules[0].id
 
             # Skip next occurrence
             success = await client.skip_schedule(device_id, schedule_id)

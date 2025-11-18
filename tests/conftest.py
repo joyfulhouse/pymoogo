@@ -40,6 +40,27 @@ def base_url() -> str:
     return os.getenv("MOOGO_BASE_URL", "https://api.moogo.com")
 
 
+@pytest.fixture(scope="session")
+async def authenticated_client():
+    """
+    Shared authenticated client for integration tests (session scope).
+
+    This reduces authentication calls to minimize daily login limit usage.
+    Only one authentication per test session instead of per test.
+    """
+    from pymoogo import MoogoClient
+
+    email = os.getenv("MOOGO_EMAIL")
+    password = os.getenv("MOOGO_PASSWORD")
+
+    if not email or not password:
+        pytest.fail("Integration tests require MOOGO_EMAIL and MOOGO_PASSWORD environment variables")
+
+    async with MoogoClient(email=email, password=password) as client:
+        await client.authenticate()
+        yield client
+
+
 @pytest.fixture
 def mock_api_response_success() -> dict[str, Any]:
     """Mock successful API response."""

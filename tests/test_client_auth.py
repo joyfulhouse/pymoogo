@@ -37,7 +37,10 @@ class TestAuthentication:
 
     @pytest.mark.asyncio
     async def test_authenticate_invalid_credentials(
-        self, client: MoogoClient, mock_session: AsyncMock, create_response: Callable[[int, dict[str, Any]], MagicMock]
+        self,
+        client: MoogoClient,
+        mock_session: AsyncMock,
+        create_response: Callable[[int, dict[str, Any]], MagicMock],
     ) -> None:
         """Test authentication with invalid credentials."""
         error_response = {
@@ -54,7 +57,10 @@ class TestAuthentication:
 
     @pytest.mark.asyncio
     async def test_authenticate_rate_limited(
-        self, client: MoogoClient, mock_session: AsyncMock, create_response: Callable[[int, dict[str, Any]], MagicMock]
+        self,
+        client: MoogoClient,
+        mock_session: AsyncMock,
+        create_response: Callable[[int, dict[str, Any]], MagicMock],
     ) -> None:
         """Test authentication when rate limited."""
         error_response = {
@@ -79,7 +85,11 @@ class TestAuthentication:
 
     @pytest.mark.asyncio
     async def test_authenticate_with_override_credentials(
-        self, client: MoogoClient, mock_auth_response: dict[str, Any], mock_session: AsyncMock, create_response: Callable[[int, dict[str, Any]], MagicMock]
+        self,
+        client: MoogoClient,
+        mock_auth_response: dict[str, Any],
+        mock_session: AsyncMock,
+        create_response: Callable[[int, dict[str, Any]], MagicMock],
     ) -> None:
         """Test authentication with override credentials."""
         mock_response_cm = create_response(200, mock_auth_response)

@@ -73,9 +73,7 @@ def retry_with_backoff(
                     return await func(*args, **kwargs)
                 except MoogoRateLimitError:
                     # NEVER retry rate limit errors - 24-hour lockout
-                    _LOGGER.error(
-                        f"{func.__name__}: Rate limited (24-hour lockout). Do not retry."
-                    )
+                    _LOGGER.error(f"{func.__name__}: Rate limited (24-hour lockout). Do not retry.")
                     raise
                 except retry_on as e:
                     last_exception = e
@@ -881,7 +879,9 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("POST", f"v1/devices/{device_id}/schedules/{schedule_id}/enable", json={})
+        response = await self._request(
+            "POST", f"v1/devices/{device_id}/schedules/{schedule_id}/enable", json={}
+        )
         success = response.get("code") == self.SUCCESS_CODE
 
         if success:
@@ -903,7 +903,9 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("POST", f"v1/devices/{device_id}/schedules/{schedule_id}/disable", json={})
+        response = await self._request(
+            "POST", f"v1/devices/{device_id}/schedules/{schedule_id}/disable", json={}
+        )
         success = response.get("code") == self.SUCCESS_CODE
 
         if success:
@@ -925,11 +927,15 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("POST", f"v1/devices/{device_id}/schedules/{schedule_id}/skip", json={})
+        response = await self._request(
+            "POST", f"v1/devices/{device_id}/schedules/{schedule_id}/skip", json={}
+        )
         success = response.get("code") == self.SUCCESS_CODE
 
         if success:
-            _LOGGER.info(f"Skipped next occurrence of schedule {schedule_id} for device {device_id}")
+            _LOGGER.info(
+                f"Skipped next occurrence of schedule {schedule_id} for device {device_id}"
+            )
 
         return success
 
@@ -946,7 +952,9 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("POST", f"v1/devices/{device_id}/schedules/switch/open", json={})
+        response = await self._request(
+            "PUT", f"v1/devices/{device_id}/schedules/switch/open", json={}
+        )
         success = response.get("code") == self.SUCCESS_CODE
 
         if success:
@@ -967,7 +975,9 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("POST", f"v1/devices/{device_id}/schedules/switch/close", json={})
+        response = await self._request(
+            "PUT", f"v1/devices/{device_id}/schedules/switch/close", json={}
+        )
         success = response.get("code") == self.SUCCESS_CODE
 
         if success:
@@ -1040,7 +1050,7 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("POST", f"v1/devices/{device_id}/configs", json=config)
+        response = await self._request("PUT", f"v1/devices/{device_id}/configs", json=config)
         success = response.get("code") == self.SUCCESS_CODE
 
         if success:
@@ -1061,7 +1071,7 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("GET", f"v1/devices/{device_id}/otaCheck")
+        response = await self._request("POST", f"v1/devices/{device_id}/otaCheck", json={})
         data: dict[str, Any] = response.get("data", {})
         return data
 
