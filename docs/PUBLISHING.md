@@ -124,22 +124,17 @@ This is useful for:
 For local testing without triggering GitHub Actions:
 
 ```bash
-# Install build tools
-python3 -m venv .venv
-source .venv/bin/activate
-pip install build twine
-
 # Build package
-python -m build
+uv build
 
 # Check package
-twine check dist/*
+uvx twine check dist/*
 
 # Upload to TestPyPI (requires API token or username/password)
-twine upload --repository testpypi dist/*
+uvx twine upload --repository testpypi dist/*
 
 # Test installation
-pip install --index-url https://test.pypi.org/simple/ pymoogo
+uv pip install --index-url https://test.pypi.org/simple/ pymoogo
 ```
 
 **Note**: Local uploads require API tokens. For GitHub Actions, use trusted publishing instead.
@@ -153,7 +148,7 @@ Before publishing to PyPI, always test with TestPyPI:
 1. Publish to TestPyPI (use workflow dispatch with `testpypi` environment)
 2. Install from TestPyPI:
    ```bash
-   pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ pymoogo
+   uv pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ pymoogo
    ```
    (The `--extra-index-url` allows dependencies from PyPI)
 
@@ -168,7 +163,7 @@ Before publishing to PyPI, always test with TestPyPI:
 
 ```bash
 # Install from PyPI
-pip install pymoogo
+uv pip install pymoogo
 
 # Verify
 python -c "from pymoogo import MoogoClient; print('Import successful')"
@@ -208,8 +203,8 @@ For TestPyPI, you can use `skip-existing: true` (already configured).
 
 Run local checks:
 ```bash
-python -m build
-twine check dist/*
+uv build
+uvx twine check dist/*
 ```
 
 Fix any issues reported by `twine check`.
@@ -237,15 +232,15 @@ Before creating a release:
 
 - [ ] Update version in `pyproject.toml`
 - [ ] Update CHANGELOG.md (if exists) or prepare release notes
-- [ ] Run tests locally: `pytest tests/`
-- [ ] Run lint checks: `ruff check .` and `mypy src/pymoogo`
-- [ ] Test build locally: `python -m build && twine check dist/*`
+- [ ] Run tests locally: `uv run pytest`
+- [ ] Run lint checks: `uv run ruff check .` and `uv run mypy src/pymoogo`
+- [ ] Test build locally: `uv build && uvx twine check dist/*`
 - [ ] Commit and push all changes
 - [ ] Create and push git tag: `git tag vX.Y.Z && git push origin vX.Y.Z`
 - [ ] Optional: Test with TestPyPI first using workflow dispatch
 - [ ] Create GitHub release
 - [ ] Verify workflow completes successfully
-- [ ] Test installation from PyPI: `pip install pymoogo`
+- [ ] Test installation from PyPI: `uv pip install pymoogo`
 - [ ] Verify the package page on PyPI: https://pypi.org/project/pymoogo/
 
 ## Additional Resources
