@@ -4,7 +4,6 @@ These tests require real API credentials set in .env file.
 Run with: pytest test_integration_priority1.py -m integration
 """
 
-import os
 from datetime import datetime
 
 import pytest
