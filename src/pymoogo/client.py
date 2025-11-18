@@ -145,6 +145,7 @@ class MoogoClient:
         "device_schedule_detail": "v1/devices/{device_id}/schedules/{schedule_id}",
         "device_logs": "v1/devices/{device_id}/logs",
         "device_config": "v1/devices/{device_id}/configs",
+        "device_configs": "v1/devices/{device_id}/configs",  # Alias for compatibility
         "device_ota_check": "v1/devices/{device_id}/otaCheck",
         "device_ota_update": "v1/devices/{device_id}/otaUpdate",
         "schedule_enable": "v1/devices/{device_id}/schedules/{schedule_id}/enable",
@@ -318,9 +319,16 @@ class MoogoClient:
 
     def _record_device_success(self, device_id: str) -> None:
         """Record a device success, resetting circuit breaker."""
-        if device_id in self._device_circuit_breakers:
+        if device_id not in self._device_circuit_breakers:
+            self._device_circuit_breakers[device_id] = {
+                "failures": 0,
+                "last_failure": None,
+                "last_success": datetime.now(),
+            }
+        else:
             self._device_circuit_breakers[device_id]["failures"] = 0
-            _LOGGER.debug(f"Circuit breaker reset for device {device_id}")
+            self._device_circuit_breakers[device_id]["last_success"] = datetime.now()
+        _LOGGER.debug(f"Circuit breaker reset for device {device_id}")
 
     def get_device_circuit_status(self, device_id: str) -> dict[str, Any]:
         """
@@ -331,18 +339,29 @@ class MoogoClient:
 
         Returns:
             Dictionary with circuit breaker status:
-            - is_open: Whether circuit is currently open
+            - circuit_open: Whether circuit is currently open
+            - is_open: Whether circuit is currently open (alias)
             - failures: Number of consecutive failures
             - last_failure: Timestamp of last failure (or None)
+            - last_success: Timestamp of last success (or None)
         """
         if device_id not in self._device_circuit_breakers:
-            return {"is_open": False, "failures": 0, "last_failure": None}
+            return {
+                "circuit_open": False,
+                "is_open": False,
+                "failures": 0,
+                "last_failure": None,
+                "last_success": None,
+            }
 
         breaker = self._device_circuit_breakers[device_id]
+        is_open = self._is_circuit_open(device_id)
         return {
-            "is_open": self._is_circuit_open(device_id),
+            "circuit_open": is_open,  # For backward compatibility with tests
+            "is_open": is_open,  # More intuitive naming
             "failures": breaker.get("failures", 0),
             "last_failure": breaker.get("last_failure"),
+            "last_success": breaker.get("last_success"),
         }
 
     async def _request(
@@ -845,6 +864,225 @@ class MoogoClient:
 
         if success:
             _LOGGER.info(f"Deleted schedule {schedule_id} for device {device_id}")
+
+        return success
+
+    async def enable_schedule(self, device_id: str, schedule_id: str) -> bool:
+        """
+        Enable a specific schedule.
+
+        Args:
+            device_id: Device ID
+            schedule_id: Schedule ID
+
+        Returns:
+            True if successful
+        """
+        if not self.is_authenticated:
+            raise MoogoAuthError("Authentication required")
+
+        response = await self._request("POST", f"v1/devices/{device_id}/schedules/{schedule_id}/enable", json={})
+        success = response.get("code") == self.SUCCESS_CODE
+
+        if success:
+            _LOGGER.info(f"Enabled schedule {schedule_id} for device {device_id}")
+
+        return success
+
+    async def disable_schedule(self, device_id: str, schedule_id: str) -> bool:
+        """
+        Disable a specific schedule.
+
+        Args:
+            device_id: Device ID
+            schedule_id: Schedule ID
+
+        Returns:
+            True if successful
+        """
+        if not self.is_authenticated:
+            raise MoogoAuthError("Authentication required")
+
+        response = await self._request("POST", f"v1/devices/{device_id}/schedules/{schedule_id}/disable", json={})
+        success = response.get("code") == self.SUCCESS_CODE
+
+        if success:
+            _LOGGER.info(f"Disabled schedule {schedule_id} for device {device_id}")
+
+        return success
+
+    async def skip_schedule(self, device_id: str, schedule_id: str) -> bool:
+        """
+        Skip the next occurrence of a schedule.
+
+        Args:
+            device_id: Device ID
+            schedule_id: Schedule ID
+
+        Returns:
+            True if successful
+        """
+        if not self.is_authenticated:
+            raise MoogoAuthError("Authentication required")
+
+        response = await self._request("POST", f"v1/devices/{device_id}/schedules/{schedule_id}/skip", json={})
+        success = response.get("code") == self.SUCCESS_CODE
+
+        if success:
+            _LOGGER.info(f"Skipped next occurrence of schedule {schedule_id} for device {device_id}")
+
+        return success
+
+    async def enable_all_schedules(self, device_id: str) -> bool:
+        """
+        Enable all schedules for a device.
+
+        Args:
+            device_id: Device ID
+
+        Returns:
+            True if successful
+        """
+        if not self.is_authenticated:
+            raise MoogoAuthError("Authentication required")
+
+        response = await self._request("POST", f"v1/devices/{device_id}/schedules/switch/open", json={})
+        success = response.get("code") == self.SUCCESS_CODE
+
+        if success:
+            _LOGGER.info(f"Enabled all schedules for device {device_id}")
+
+        return success
+
+    async def disable_all_schedules(self, device_id: str) -> bool:
+        """
+        Disable all schedules for a device.
+
+        Args:
+            device_id: Device ID
+
+        Returns:
+            True if successful
+        """
+        if not self.is_authenticated:
+            raise MoogoAuthError("Authentication required")
+
+        response = await self._request("POST", f"v1/devices/{device_id}/schedules/switch/close", json={})
+        success = response.get("code") == self.SUCCESS_CODE
+
+        if success:
+            _LOGGER.info(f"Disabled all schedules for device {device_id}")
+
+        return success
+
+    async def get_device_logs(
+        self,
+        device_id: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> dict[str, Any]:
+        """
+        Get device operation logs with optional date filtering and pagination.
+
+        Args:
+            device_id: Device ID
+            start_date: Start date filter (YYYY-MM-DD format), optional
+            end_date: End date filter (YYYY-MM-DD format), optional
+            page: Page number (default: 1)
+            page_size: Items per page (default: 20)
+
+        Returns:
+            Dictionary containing logs and pagination info
+        """
+        if not self.is_authenticated:
+            raise MoogoAuthError("Authentication required")
+
+        params: dict[str, Any] = {"page": page, "pageSize": page_size}
+        if start_date:
+            params["startDate"] = start_date
+        if end_date:
+            params["endDate"] = end_date
+
+        response = await self._request("GET", f"v1/devices/{device_id}/logs", params=params)
+        data: dict[str, Any] = response.get("data", {})
+        return data
+
+    async def get_device_config(self, device_id: str) -> dict[str, Any]:
+        """
+        Get device configuration settings.
+
+        Args:
+            device_id: Device ID
+
+        Returns:
+            Dictionary containing device configuration
+        """
+        if not self.is_authenticated:
+            raise MoogoAuthError("Authentication required")
+
+        response = await self._request("GET", f"v1/devices/{device_id}/configs")
+        data: dict[str, Any] = response.get("data", {})
+        return data
+
+    async def set_device_config(self, device_id: str, config: dict[str, Any]) -> bool:
+        """
+        Update device configuration settings.
+
+        Args:
+            device_id: Device ID
+            config: Configuration dictionary
+
+        Returns:
+            True if successful
+        """
+        if not self.is_authenticated:
+            raise MoogoAuthError("Authentication required")
+
+        response = await self._request("POST", f"v1/devices/{device_id}/configs", json=config)
+        success = response.get("code") == self.SUCCESS_CODE
+
+        if success:
+            _LOGGER.info(f"Updated configuration for device {device_id}")
+
+        return success
+
+    async def check_firmware_update(self, device_id: str) -> dict[str, Any]:
+        """
+        Check if firmware update is available for a device.
+
+        Args:
+            device_id: Device ID
+
+        Returns:
+            Dictionary containing update information (available, version, url, etc.)
+        """
+        if not self.is_authenticated:
+            raise MoogoAuthError("Authentication required")
+
+        response = await self._request("GET", f"v1/devices/{device_id}/otaCheck")
+        data: dict[str, Any] = response.get("data", {})
+        return data
+
+    async def trigger_firmware_update(self, device_id: str) -> bool:
+        """
+        Trigger OTA firmware update for a device.
+
+        Args:
+            device_id: Device ID
+
+        Returns:
+            True if update was triggered successfully
+        """
+        if not self.is_authenticated:
+            raise MoogoAuthError("Authentication required")
+
+        response = await self._request("POST", f"v1/devices/{device_id}/otaUpdate", json={})
+        success = response.get("code") == self.SUCCESS_CODE
+
+        if success:
+            _LOGGER.info(f"Triggered firmware update for device {device_id}")
 
         return success
 
