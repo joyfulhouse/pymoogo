@@ -123,30 +123,47 @@ jobs:
             fi
           fi
 
-      - name: Update cached session secrets (requires PAT_TOKEN)
-        if: steps.integration-tests.outputs.session_refreshed == 'true' && github.event_name != 'pull_request' && secrets.PAT_TOKEN != ''
+      - name: Update cached session secrets
+        if: steps.integration-tests.outputs.session_refreshed == 'true' && github.event_name != 'pull_request'
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          # Use PAT_TOKEN if available, otherwise fallback to GITHUB_TOKEN
+          # Note: GITHUB_TOKEN lacks permissions to update secrets, but we try anyway
+          GH_TOKEN: ${{ secrets.PAT_TOKEN != '' && secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
-          echo "::warning::New session detected. Updating GitHub secrets..."
+          echo "::warning::New session detected. Attempting to update GitHub secrets..."
 
-          # Update secrets using gh CLI (requires PAT with repo permissions)
-          echo "${{ steps.integration-tests.outputs.cached_token }}" | gh secret set MOOGO_CACHED_TOKEN
-          echo "${{ steps.integration-tests.outputs.cached_user_id }}" | gh secret set MOOGO_CACHED_USER_ID
-          echo "${{ steps.integration-tests.outputs.cached_expires }}" | gh secret set MOOGO_CACHED_EXPIRES
+          # Try to update secrets using gh CLI
+          set +e  # Don't fail if secret update fails
 
-          echo "::notice::GitHub secrets updated successfully. Session valid until: ${{ steps.integration-tests.outputs.cached_expires }}"
-        continue-on-error: true
+          echo "${{ steps.integration-tests.outputs.cached_token }}" | gh secret set MOOGO_CACHED_TOKEN 2>&1
+          TOKEN_RESULT=$?
+
+          echo "${{ steps.integration-tests.outputs.cached_user_id }}" | gh secret set MOOGO_CACHED_USER_ID 2>&1
+          USER_RESULT=$?
+
+          echo "${{ steps.integration-tests.outputs.cached_expires }}" | gh secret set MOOGO_CACHED_EXPIRES 2>&1
+          EXPIRES_RESULT=$?
+
+          if [ $TOKEN_RESULT -eq 0 ] && [ $USER_RESULT -eq 0 ] && [ $EXPIRES_RESULT -eq 0 ]; then
+            echo "::notice::GitHub secrets updated successfully. Session valid until: ${{ steps.integration-tests.outputs.cached_expires }}"
+            exit 0
+          else
+            echo "::warning::Could not auto-update GitHub secrets. This is expected if using GITHUB_TOKEN."
+            echo "session_update_failed=true" >> $GITHUB_OUTPUT
+            exit 0  # Don't fail the workflow
+          fi
 
       - name: Session refresh instructions
-        if: steps.integration-tests.outputs.session_refreshed == 'true' && (secrets.PAT_TOKEN == '' || failure())
+        if: steps.integration-tests.outputs.session_refreshed == 'true'
         run: |
-          echo "::warning::Session was refreshed but secrets could not be auto-updated."
+          echo "::notice::Session was refreshed. New token valid until: ${{ steps.integration-tests.outputs.cached_expires }}"
           echo "::notice::To update GitHub secrets manually, run locally:"
+          echo "  ./scripts/update-gh-secrets.sh"
+          echo ""
+          echo "::notice::Or update individual secrets:"
           echo "  gh secret set MOOGO_CACHED_TOKEN --body \"\$(grep MOOGO_CACHED_TOKEN .env | cut -d'=' -f2)\""
           echo "  gh secret set MOOGO_CACHED_USER_ID --body \"\$(grep MOOGO_CACHED_USER_ID .env | cut -d'=' -f2)\""
           echo "  gh secret set MOOGO_CACHED_EXPIRES --body \"\$(grep MOOGO_CACHED_EXPIRES .env | cut -d'=' -f2)\""
-          echo "::notice::Or create a PAT_TOKEN secret with 'repo' scope for automatic updates."
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4

@@ -60,18 +60,23 @@ MOOGO_CACHED_EXPIRES     # Token expiration (optional, auto-updated)
 
 After running tests locally, if the session was refreshed:
 ```bash
-# Automatically update GitHub secrets from .env
+# Automatically update GitHub secrets from .env (uses gh CLI authentication)
 ./scripts/update-gh-secrets.sh
 ```
 
-**Automatic Secret Update** (optional):
+The script automatically extracts your PAT token from `gh auth status` - no manual token management needed!
 
-For automatic secret updates in CI, create a Personal Access Token (PAT):
+**Automatic Secret Update in CI** (optional):
 
-1. Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
-2. Generate new token with `repo` scope
-3. Add as secret: `PAT_TOKEN`
-4. CI will automatically update cached session secrets when refreshed
+For automatic secret updates in CI (not required, manual update works fine):
+
+1. Create a Personal Access Token (PAT):
+   - Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+   - Generate new token with `repo` scope
+2. Add as repository secret: `PAT_TOKEN`
+3. CI will automatically update cached session secrets when refreshed
+
+If `PAT_TOKEN` is not configured, CI will display manual update instructions (no harm, just requires one-time manual sync).
 
 ## Test Categories
 

@@ -34,6 +34,17 @@ if ! gh auth status &> /dev/null; then
     exit 1
 fi
 
+# Get PAT token from gh CLI
+PAT_TOKEN=$(gh auth status -t 2>&1 | grep "Token:" | awk '{print $3}')
+
+if [ -z "$PAT_TOKEN" ]; then
+    echo -e "${YELLOW}Warning: Could not extract PAT token from gh CLI${NC}"
+    echo -e "${YELLOW}Using default authentication...${NC}"
+fi
+
+# Export token for gh secret commands
+export GH_TOKEN="$PAT_TOKEN"
+
 # Extract values from .env
 CACHED_TOKEN=$(grep MOOGO_CACHED_TOKEN .env | cut -d'=' -f2)
 CACHED_USER_ID=$(grep MOOGO_CACHED_USER_ID .env | cut -d'=' -f2)
