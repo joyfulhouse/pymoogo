@@ -59,7 +59,9 @@ async def authenticated_client() -> Any:
     password = os.getenv("MOOGO_PASSWORD")
 
     if not email or not password:
-        pytest.fail("Integration tests require MOOGO_EMAIL and MOOGO_PASSWORD environment variables")
+        pytest.fail(
+            "Integration tests require MOOGO_EMAIL and MOOGO_PASSWORD environment variables"
+        )
 
     async with MoogoClient(email=email, password=password) as client:
         await client.authenticate()

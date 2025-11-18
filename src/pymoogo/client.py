@@ -216,7 +216,9 @@ class MoogoClient:
     async def __aenter__(self) -> "MoogoClient":
         """Async context manager entry."""
         if self._session is None:
-            self._session = aiohttp.ClientSession(timeout=self.timeout)
+            # Don't set timeout at session level to avoid Python 3.14 compatibility issues
+            # Timeout will be applied per-request in _request() method
+            self._session = aiohttp.ClientSession()
         return self
 
     async def __aexit__(
@@ -391,6 +393,10 @@ class MoogoClient:
 
         if "headers" in kwargs:
             headers.update(kwargs.pop("headers"))
+
+        # Apply timeout per-request (Python 3.14 compatibility)
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = self.timeout
 
         try:
             async with self.session.request(method, url, headers=headers, **kwargs) as response:
