@@ -25,7 +25,7 @@ Trusted publishing allows GitHub Actions to publish packages without needing API
    - **Owner**: `joyfulhouse` (your GitHub username/org)
    - **Repository name**: `pymoogo`
    - **Workflow name**: `publish.yml`
-   - **Environment name**: Leave blank (or use `testpypi` if you create one)
+   - **Environment name**: `testpypi` (REQUIRED - matches workflow environment)
 4. Click "Add"
 
 #### For PyPI (Production):
@@ -37,7 +37,7 @@ Trusted publishing allows GitHub Actions to publish packages without needing API
    - **Owner**: `joyfulhouse`
    - **Repository name**: `pymoogo`
    - **Workflow name**: `publish.yml`
-   - **Environment name**: Leave blank (or use `pypi` if you create one)
+   - **Environment name**: `pypi` (REQUIRED - matches workflow environment)
 4. Click "Add"
 
 **Note**: You must configure the trusted publisher BEFORE the first release. After the first successful publish, the pending publisher becomes active.
@@ -178,9 +178,23 @@ python -c "from pymoogo import MoogoClient; print('Import successful')"
 
 ### "Trusted publishing exchange failure"
 
-- Ensure you've set up trusted publishing on PyPI/TestPyPI
-- Check that the repository, workflow name, and owner match exactly
-- Verify the workflow has `id-token: write` permission
+**Error**: `invalid-publisher: valid token, but no corresponding publisher`
+
+**Cause**: The trusted publisher configuration on PyPI/TestPyPI doesn't match the workflow claims.
+
+**Solutions**:
+1. Verify you've set up trusted publishing on PyPI/TestPyPI
+2. Check the environment name **exactly matches**:
+   - TestPyPI: Environment name must be `testpypi`
+   - PyPI: Environment name must be `pypi`
+3. Ensure repository, workflow name, and owner match exactly
+4. Verify the workflow has `id-token: write` permission
+5. Check the error output for the actual claims being sent (for debugging)
+
+**Common Issues**:
+- Missing or incorrect environment name (most common)
+- Typo in repository name or owner
+- Wrong workflow file name
 
 ### "File already exists"
 
