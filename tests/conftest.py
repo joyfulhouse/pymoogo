@@ -1,7 +1,9 @@
 """Pytest configuration and shared fixtures for Moogo API tests."""
 
 import os
+from collections.abc import Callable
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from dotenv import load_dotenv
@@ -41,14 +43,14 @@ def base_url() -> str:
 
 
 @pytest.fixture(scope="session")
-async def authenticated_client():
+async def authenticated_client() -> Any:
     """
     Shared authenticated client for integration tests (session scope).
 
     This reduces authentication calls to minimize daily login limit usage.
     Only one authentication per test session instead of per test.
     """
-    from pymoogo import MoogoClient
+    from pymoogo import MoogoClient  # type: ignore[import-untyped]
 
     email = os.getenv("MOOGO_EMAIL")
     password = os.getenv("MOOGO_PASSWORD")
@@ -242,3 +244,65 @@ def pytest_collection_modifyitems(config: Any, items: list[Any]) -> None:
         # Add 'auth' marker to tests that require authentication
         if "auth" in item.name.lower() or "login" in item.name.lower():
             item.add_marker(pytest.mark.auth)
+
+
+# Mock fixtures for unit tests
+@pytest.fixture
+def mock_session() -> MagicMock:
+    """Mock aiohttp ClientSession for unit tests."""
+    session = MagicMock()
+    return session
+
+
+@pytest.fixture
+def client(mock_credentials: dict[str, str], mock_session: MagicMock) -> Any:
+    """Create a test client with mocked session."""
+    from pymoogo import MoogoClient  # type: ignore[import-untyped]
+
+    client_instance = MoogoClient(**mock_credentials)
+    client_instance._session = mock_session
+    return client_instance
+
+
+@pytest.fixture
+def create_response() -> Callable[[int, dict[str, Any]], MagicMock]:
+    """Factory for creating mock HTTP responses."""
+
+    def _create(status: int, json_data: dict[str, Any]) -> MagicMock:
+        mock_response = MagicMock()
+        mock_response.status = status
+
+        # Create async mock for json()
+        async def json_func() -> dict[str, Any]:
+            return json_data
+
+        mock_response.json = json_func
+
+        # Create async context manager
+        async def aenter(*args: Any) -> Any:
+            return mock_response
+
+        async def aexit(*args: Any) -> None:
+            pass
+
+        mock_response.__aenter__ = aenter
+        mock_response.__aexit__ = aexit
+
+        return mock_response
+
+    return _create
+
+
+@pytest.fixture
+def mock_auth_response() -> dict[str, Any]:
+    """Mock authentication response."""
+    return {
+        "code": 0,
+        "message": "success",
+        "data": {
+            "token": "test_token_123",
+            "userId": "test_user_123",
+            "email": "test@example.com",
+            "ttl": 86400,
+        },
+    }
