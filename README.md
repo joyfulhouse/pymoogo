@@ -330,7 +330,13 @@ ruff pymoogo
 
 ## API Documentation
 
-See [openapi.yaml](openapi.yaml) for complete API documentation.
+See [openapi.yaml](docs/openapi.yaml) for complete API documentation.
+
+## Publishing
+
+For information on publishing this package to PyPI, see:
+- [docs/PUBLISHING.md](docs/PUBLISHING.md) - Complete publishing guide
+- [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md) - Quick setup checklist
 
 ## License
 
