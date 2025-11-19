@@ -3,7 +3,7 @@ updates:
   # Python dependencies via UV
   # Dependabot now supports UV natively! 🎉
   # See: https://docs.astral.sh/uv/guides/integration/dependency-bots/
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
