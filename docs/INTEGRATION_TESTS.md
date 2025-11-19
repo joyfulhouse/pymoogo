@@ -66,17 +66,25 @@ After running tests locally, if the session was refreshed:
 
 The script automatically extracts your PAT token from `gh auth status` - no manual token management needed!
 
-**Automatic Secret Update in CI** (optional):
+**Automatic Secret Update in CI**:
 
-For automatic secret updates in CI (not required, manual update works fine):
+CI automatically updates GitHub secrets when the session is refreshed using the `PAT_TOKEN` secret.
 
-1. Create a Personal Access Token (PAT):
-   - Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
-   - Generate new token with `repo` scope
-2. Add as repository secret: `PAT_TOKEN`
-3. CI will automatically update cached session secrets when refreshed
+**One-Time Setup** (already done for this repo):
+```bash
+# Extract PAT from gh CLI and set as secret (run once)
+gh auth status -t 2>&1 | grep "Token:" | awk '{print $3}' | gh secret set PAT_TOKEN
+```
 
-If `PAT_TOKEN` is not configured, CI will display manual update instructions (no harm, just requires one-time manual sync).
+**How It Works**:
+1. Integration tests run → Detect session refresh
+2. Extract new session values from `.env`
+3. Update GitHub secrets automatically using `PAT_TOKEN`
+4. Next CI run uses updated cached session
+5. Zero manual intervention required!
+
+**If PAT_TOKEN is Missing**:
+CI will fail with clear instructions on how to create it. Just run the command above once.
 
 ## Test Categories
 
