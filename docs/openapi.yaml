@@ -435,11 +435,11 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   /v1/devices/{deviceId}/schedules/{scheduleId}/enable:
-    post:
+    put:
       tags:
         - Schedules
       summary: Enable schedule
-      description: Enable a specific schedule
+      description: Enable a specific schedule (uses PUT not POST)
       parameters:
         - $ref: '#/components/parameters/DeviceId'
         - $ref: '#/components/parameters/ScheduleId'
@@ -459,11 +459,11 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   /v1/devices/{deviceId}/schedules/{scheduleId}/disable:
-    post:
+    put:
       tags:
         - Schedules
       summary: Disable schedule
-      description: Disable a specific schedule
+      description: Disable a specific schedule (uses PUT not POST)
       parameters:
         - $ref: '#/components/parameters/DeviceId'
         - $ref: '#/components/parameters/ScheduleId'
@@ -483,11 +483,11 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   /v1/devices/{deviceId}/schedules/switch/open:
-    post:
+    put:
       tags:
         - Schedules
       summary: Enable all schedules
-      description: Enable all schedules for a device
+      description: Enable all schedules for a device (uses PUT not POST)
       parameters:
         - $ref: '#/components/parameters/DeviceId'
       requestBody:
@@ -506,11 +506,11 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   /v1/devices/{deviceId}/schedules/switch/close:
-    post:
+    put:
       tags:
         - Schedules
       summary: Disable all schedules
-      description: Disable all schedules for a device
+      description: Disable all schedules for a device (uses PUT not POST)
       parameters:
         - $ref: '#/components/parameters/DeviceId'
       requestBody:
@@ -548,11 +548,17 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-    post:
+    put:
       tags:
         - Devices
       summary: Set device configuration
-      description: Update device configuration settings
+      description: |
+        Update device configuration settings.
+
+        **Important Notes:**
+        - Only writable fields are accepted: deviceId, stopTemperature, stopRainy, stopSnow, userId, liquidName, timeZone, sprayingSeconds, id, stopWindstorm, liquidConcentration
+        - The `timeZone` field must be in IANA format (e.g., "America/Los_Angeles"), not POSIX format (e.g., "PST8PDT,M3.2.0,M11.1.0")
+        - Read-only fields will be rejected with an error
       parameters:
         - $ref: '#/components/parameters/DeviceId'
       requestBody:
@@ -562,6 +568,41 @@ paths:
             schema:
               type: object
               description: Device configuration parameters
+              properties:
+                deviceId:
+                  type: string
+                  description: Device identifier
+                stopTemperature:
+                  type: number
+                  description: Temperature threshold to stop spraying
+                stopRainy:
+                  type: boolean
+                  description: Stop spraying when raining
+                stopSnow:
+                  type: boolean
+                  description: Stop spraying when snowing
+                stopWindstorm:
+                  type: boolean
+                  description: Stop spraying during windstorms
+                userId:
+                  type: string
+                  description: User identifier
+                liquidName:
+                  type: string
+                  description: Name of liquid concentrate
+                liquidConcentration:
+                  type: number
+                  description: Concentration of liquid
+                timeZone:
+                  type: string
+                  description: IANA timezone identifier (e.g., "America/Los_Angeles", "Europe/London"). POSIX format NOT supported.
+                  example: "America/Los_Angeles"
+                sprayingSeconds:
+                  type: integer
+                  description: Default spraying duration in seconds
+                id:
+                  type: string
+                  description: Configuration ID
       responses:
         '200':
           $ref: '#/components/responses/Success'
@@ -611,13 +652,20 @@ paths:
           $ref: '#/components/responses/NotFound'
 
   /v1/devices/{deviceId}/otaCheck:
-    get:
+    post:
       tags:
         - Devices
       summary: Check for firmware updates
-      description: Check if firmware update is available for device
+      description: Check if firmware update is available for device (uses POST not GET)
       parameters:
         - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              example: {}
       responses:
         '200':
           description: Successful response
