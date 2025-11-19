@@ -222,8 +222,6 @@ class TestScheduleManagement:
     @pytest.mark.device
     async def test_enable_disable_schedule(self, authenticated_client, test_device_id):
         """Test enabling and disabling a schedule."""
-        from pymoogo import MoogoAPIError
-
         # Get device ID
         if test_device_id:
             device_id = test_device_id
@@ -241,24 +239,17 @@ class TestScheduleManagement:
 
         schedule_id = schedules[0].id
 
-        try:
-            # Disable schedule
-            success = await authenticated_client.disable_schedule(device_id, schedule_id)
-            assert success is True
+        # Disable schedule
+        success = await authenticated_client.disable_schedule(device_id, schedule_id)
+        assert success is True
 
-            # Enable schedule
-            success = await authenticated_client.enable_schedule(device_id, schedule_id)
-            assert success is True
-        except MoogoAPIError as e:
-            if "not supported" in str(e):
-                pytest.skip("API endpoint not yet implemented or changed")
-            raise
+        # Enable schedule
+        success = await authenticated_client.enable_schedule(device_id, schedule_id)
+        assert success is True
 
     @pytest.mark.device
     async def test_skip_schedule(self, authenticated_client, test_device_id):
         """Test skipping a schedule occurrence."""
-        from pymoogo import MoogoAPIError
-
         # Get device ID
         if test_device_id:
             device_id = test_device_id
@@ -276,14 +267,9 @@ class TestScheduleManagement:
 
         schedule_id = schedules[0].id
 
-        try:
-            # Skip next occurrence
-            success = await authenticated_client.skip_schedule(device_id, schedule_id)
-            assert success is True
-        except MoogoAPIError as e:
-            if "not supported" in str(e):
-                pytest.skip("API endpoint not yet implemented or changed")
-            raise
+        # Skip next occurrence
+        success = await authenticated_client.skip_schedule(device_id, schedule_id)
+        assert success is True
 
     @pytest.mark.device
     async def test_enable_disable_all_schedules(self, authenticated_client, test_device_id):
@@ -343,6 +329,11 @@ class TestDeviceConfiguration:
         # Get current config
         current_config = await authenticated_client.get_device_config(device_id)
 
+        # Debug: Check timezone value
+        import logging
+
+        logging.info(f"Original timezone value: {repr(current_config.get('timeZone'))}")
+
         # Filter to only writable fields (based on API error message)
         # API accepts: deviceId, stopTemperature, stopRainy, stopSnow, userId,
         # liquidName, timeZone, sprayingSeconds, id, stopWindstorm, liquidConcentration
@@ -361,19 +352,18 @@ class TestDeviceConfiguration:
         ]
         filtered_config = {k: v for k, v in current_config.items() if k in writable_fields}
 
-        # Ensure timezone is valid (use UTC if not set or invalid)
-        if "timeZone" not in filtered_config or not filtered_config["timeZone"]:
-            filtered_config["timeZone"] = "America/New_York"  # Use a known valid timezone
+        # Handle timezone: API only accepts IANA format (e.g., America/New_York)
+        # Not POSIX format (e.g., PST8PDT,M3.2.0,M11.1.0)
+        if "timeZone" in filtered_config:
+            tz = filtered_config.get("timeZone", "").strip()
+            # Remove if empty, null, or POSIX format (contains comma)
+            if not tz or tz in ["", "null", "None"] or "," in tz:
+                # Use a valid IANA timezone
+                filtered_config["timeZone"] = "America/Los_Angeles"
 
         # Set config (using same values to avoid changing device state)
-        try:
-            success = await authenticated_client.set_device_config(device_id, filtered_config)
-            assert success is True
-        except Exception as e:
-            # If timezone is still invalid, skip test
-            if "timezone" in str(e).lower():
-                pytest.skip(f"Device has invalid timezone configuration: {e}")
-            raise
+        success = await authenticated_client.set_device_config(device_id, filtered_config)
+        assert success is True
 
 
 @pytest.mark.integration

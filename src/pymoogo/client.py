@@ -892,7 +892,7 @@ class MoogoClient:
             raise MoogoAuthError("Authentication required")
 
         response = await self._request(
-            "POST", f"v1/devices/{device_id}/schedules/{schedule_id}/enable", json={}
+            "PUT", f"v1/devices/{device_id}/schedules/{schedule_id}/enable", json={}
         )
         success = response.get("code") == self.SUCCESS_CODE
 
@@ -916,7 +916,7 @@ class MoogoClient:
             raise MoogoAuthError("Authentication required")
 
         response = await self._request(
-            "POST", f"v1/devices/{device_id}/schedules/{schedule_id}/disable", json={}
+            "PUT", f"v1/devices/{device_id}/schedules/{schedule_id}/disable", json={}
         )
         success = response.get("code") == self.SUCCESS_CODE
 
@@ -940,7 +940,7 @@ class MoogoClient:
             raise MoogoAuthError("Authentication required")
 
         response = await self._request(
-            "POST", f"v1/devices/{device_id}/schedules/{schedule_id}/skip", json={}
+            "PUT", f"v1/devices/{device_id}/schedules/{schedule_id}/skip", json={}
         )
         success = response.get("code") == self.SUCCESS_CODE
 
