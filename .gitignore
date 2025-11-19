@@ -67,3 +67,6 @@ credentials.json
 secrets.yaml
 *.pem
 *.key
+
+# Research directory (APK analysis, not for distribution)
+research/
