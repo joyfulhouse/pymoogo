@@ -72,7 +72,9 @@ jobs:
     name: Integration Tests - Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     needs: [lint, test-unit]
-    # Integration tests are REQUIRED but need admin approval via GitHub Environment
+    # Integration tests are OPTIONAL - disabled by default to prevent rate limiting
+    # Can be manually triggered via workflow_dispatch
+    if: github.event.inputs.run_integration_tests == 'true' || false
     environment: integration-tests
     strategy:
       matrix:
@@ -159,8 +161,8 @@ jobs:
     name: Build package
     runs-on: ubuntu-latest
     needs: [lint, test-unit, test-integration]
-    # Integration tests are REQUIRED - build only runs if all tests pass
-    if: always() && needs.lint.result == 'success' && needs.test-unit.result == 'success' && needs.test-integration.result == 'success'
+    # Build if lint and unit tests pass (integration tests are optional)
+    if: always() && needs.lint.result == 'success' && needs.test-unit.result == 'success' && (needs.test-integration.result == 'success' || needs.test-integration.result == 'skipped')
 
     steps:
       - uses: actions/checkout@v4
