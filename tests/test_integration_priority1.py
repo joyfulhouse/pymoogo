@@ -11,7 +11,7 @@ from datetime import datetime
 
 import pytest
 
-from pymoogo import MoogoAuthError, MoogoClient
+from pymoogo import MoogoAuthError, MoogoClient, MoogoDevice
 
 # Integration tests marker
 pytestmark = pytest.mark.integration
@@ -34,8 +34,9 @@ class TestAuthentication:
             assert "token" in auth_data
             assert "user_id" in auth_data
             assert client.is_authenticated
-            assert client._token is not None
-            assert client._user_id is not None
+            # Token and user_id are now in the API layer
+            assert client._api._token is not None
+            assert client._api._user_id is not None
 
     async def test_login_invalid_credentials(self):
         """Test login with invalid credentials."""
@@ -60,25 +61,25 @@ class TestDeviceDiscovery:
         # User should have at least one device for full testing
         if len(devices) > 0:
             device = devices[0]
-            assert "deviceId" in device
-            assert "deviceName" in device
-            assert "onlineStatus" in device
+            assert isinstance(device, MoogoDevice)
+            assert device.id is not None
+            assert device.name is not None
 
     async def test_get_device_status(self, authenticated_client, test_device_id):
         """Test getting device status."""
-        # Get device ID
+        # Get device
         if test_device_id:
-            device_id = test_device_id
+            device = await authenticated_client.get_device_by_id(test_device_id)
         else:
             devices = await authenticated_client.get_devices()
             if len(devices) == 0:
                 pytest.skip("No devices available for testing")
-            device_id = devices[0]["deviceId"]
+            device = devices[0]
 
-        # Get device status
-        status = await authenticated_client.get_device_status(device_id)
+        # Refresh device status
+        status = await device.refresh()
 
-        assert status.device_id == device_id
+        assert status.device_id == device.id
         assert hasattr(status, "online_status")
         assert hasattr(status, "run_status")
         assert hasattr(status, "firmware")
@@ -94,15 +95,15 @@ class TestDeviceLogs:
         """Test getting device operation logs."""
         # Get device ID
         if test_device_id:
-            device_id = test_device_id
+            device = await authenticated_client.get_device_by_id(test_device_id)
         else:
             devices = await authenticated_client.get_devices()
             if len(devices) == 0:
                 pytest.skip("No devices available for testing")
-            device_id = devices[0]["deviceId"]
+            device = devices[0]
 
         # Get logs
-        logs = await authenticated_client.get_device_logs(device_id)
+        logs = await device.get_logs()
 
         assert isinstance(logs, dict)
         # Logs may be empty for new devices
@@ -113,15 +114,15 @@ class TestDeviceLogs:
         """Test getting device logs with pagination."""
         # Get device ID
         if test_device_id:
-            device_id = test_device_id
+            device = await authenticated_client.get_device_by_id(test_device_id)
         else:
             devices = await authenticated_client.get_devices()
             if len(devices) == 0:
                 pytest.skip("No devices available for testing")
-            device_id = devices[0]["deviceId"]
+            device = devices[0]
 
         # Get logs with pagination
-        logs = await authenticated_client.get_device_logs(device_id, page=1, page_size=10)
+        logs = await device.get_logs(page=1, page_size=10)
 
         assert isinstance(logs, dict)
 
@@ -129,16 +130,16 @@ class TestDeviceLogs:
         """Test getting device logs with date filtering."""
         # Get device ID
         if test_device_id:
-            device_id = test_device_id
+            device = await authenticated_client.get_device_by_id(test_device_id)
         else:
             devices = await authenticated_client.get_devices()
             if len(devices) == 0:
                 pytest.skip("No devices available for testing")
-            device_id = devices[0]["deviceId"]
+            device = devices[0]
 
         # Get logs for last 7 days
         today = datetime.now().strftime("%Y-%m-%d")
-        logs = await authenticated_client.get_device_logs(device_id, end_date=today)
+        logs = await device.get_logs(end_date=today)
 
         assert isinstance(logs, dict)
 
@@ -153,15 +154,15 @@ class TestScheduleManagement:
         """Test getting device schedules."""
         # Get device ID
         if test_device_id:
-            device_id = test_device_id
+            device = await authenticated_client.get_device_by_id(test_device_id)
         else:
             devices = await authenticated_client.get_devices()
             if len(devices) == 0:
                 pytest.skip("No devices available for testing")
-            device_id = devices[0]["deviceId"]
+            device = devices[0]
 
         # Get schedules
-        schedules = await authenticated_client.get_device_schedules(device_id)
+        schedules = await device.get_schedules()
 
         assert isinstance(schedules, list)
 
@@ -171,27 +172,26 @@ class TestScheduleManagement:
 
         # Get device ID
         if test_device_id:
-            device_id = test_device_id
+            device = await authenticated_client.get_device_by_id(test_device_id)
         else:
             devices = await authenticated_client.get_devices()
             if len(devices) == 0:
                 pytest.skip("No devices available for testing")
-            device_id = devices[0]["deviceId"]
+            device = devices[0]
 
         # Clean up any existing test schedules first
         from contextlib import suppress
 
-        schedules = await authenticated_client.get_device_schedules(device_id)
+        schedules = await device.get_schedules()
         for schedule in schedules:
             if schedule.hour == 10 and schedule.minute == 30:
                 with suppress(Exception):
                     # Ignore cleanup errors
-                    await authenticated_client.delete_schedule(device_id, schedule.id)
+                    await device.delete_schedule(schedule.id)
 
         # Create a test schedule
         try:
-            success = await authenticated_client.create_schedule(
-                device_id=device_id,
+            success = await device.create_schedule(
                 hour=10,
                 minute=30,
                 duration=60,
@@ -204,7 +204,7 @@ class TestScheduleManagement:
             raise
 
         # Get schedules to find the one we created
-        schedules = await authenticated_client.get_device_schedules(device_id)
+        schedules = await device.get_schedules()
 
         # Find our test schedule
         test_schedule = None
@@ -216,7 +216,7 @@ class TestScheduleManagement:
         if test_schedule:
             # Delete the schedule
             schedule_id = test_schedule.id
-            success = await authenticated_client.delete_schedule(device_id, schedule_id)
+            success = await device.delete_schedule(schedule_id)
             assert success is True
 
     @pytest.mark.device
@@ -224,15 +224,15 @@ class TestScheduleManagement:
         """Test enabling and disabling a schedule."""
         # Get device ID
         if test_device_id:
-            device_id = test_device_id
+            device = await authenticated_client.get_device_by_id(test_device_id)
         else:
             devices = await authenticated_client.get_devices()
             if len(devices) == 0:
                 pytest.skip("No devices available for testing")
-            device_id = devices[0]["deviceId"]
+            device = devices[0]
 
         # Get existing schedules
-        schedules = await authenticated_client.get_device_schedules(device_id)
+        schedules = await device.get_schedules()
 
         if len(schedules) == 0:
             pytest.skip("No schedules available for testing")
@@ -240,11 +240,11 @@ class TestScheduleManagement:
         schedule_id = schedules[0].id
 
         # Disable schedule
-        success = await authenticated_client.disable_schedule(device_id, schedule_id)
+        success = await device.disable_schedule(schedule_id)
         assert success is True
 
         # Enable schedule
-        success = await authenticated_client.enable_schedule(device_id, schedule_id)
+        success = await device.enable_schedule(schedule_id)
         assert success is True
 
     @pytest.mark.device
@@ -252,15 +252,15 @@ class TestScheduleManagement:
         """Test skipping a schedule occurrence."""
         # Get device ID
         if test_device_id:
-            device_id = test_device_id
+            device = await authenticated_client.get_device_by_id(test_device_id)
         else:
             devices = await authenticated_client.get_devices()
             if len(devices) == 0:
                 pytest.skip("No devices available for testing")
-            device_id = devices[0]["deviceId"]
+            device = devices[0]
 
         # Get existing schedules
-        schedules = await authenticated_client.get_device_schedules(device_id)
+        schedules = await device.get_schedules()
 
         if len(schedules) == 0:
             pytest.skip("No schedules available for testing")
@@ -268,7 +268,7 @@ class TestScheduleManagement:
         schedule_id = schedules[0].id
 
         # Skip next occurrence
-        success = await authenticated_client.skip_schedule(device_id, schedule_id)
+        success = await device.skip_schedule(schedule_id)
         assert success is True
 
     @pytest.mark.device
@@ -276,19 +276,19 @@ class TestScheduleManagement:
         """Test bulk enable/disable all schedules."""
         # Get device ID
         if test_device_id:
-            device_id = test_device_id
+            device = await authenticated_client.get_device_by_id(test_device_id)
         else:
             devices = await authenticated_client.get_devices()
             if len(devices) == 0:
                 pytest.skip("No devices available for testing")
-            device_id = devices[0]["deviceId"]
+            device = devices[0]
 
         # Disable all schedules
-        success = await authenticated_client.disable_all_schedules(device_id)
+        success = await device.disable_all_schedules()
         assert success is True
 
         # Enable all schedules
-        success = await authenticated_client.enable_all_schedules(device_id)
+        success = await device.enable_all_schedules()
         assert success is True
 
 
@@ -302,15 +302,15 @@ class TestDeviceConfiguration:
         """Test getting device configuration."""
         # Get device ID
         if test_device_id:
-            device_id = test_device_id
+            device = await authenticated_client.get_device_by_id(test_device_id)
         else:
             devices = await authenticated_client.get_devices()
             if len(devices) == 0:
                 pytest.skip("No devices available for testing")
-            device_id = devices[0]["deviceId"]
+            device = devices[0]
 
         # Get config
-        config = await authenticated_client.get_device_config(device_id)
+        config = await device.get_config()
 
         assert isinstance(config, dict)
 
@@ -319,15 +319,15 @@ class TestDeviceConfiguration:
         """Test setting device configuration."""
         # Get device ID
         if test_device_id:
-            device_id = test_device_id
+            device = await authenticated_client.get_device_by_id(test_device_id)
         else:
             devices = await authenticated_client.get_devices()
             if len(devices) == 0:
                 pytest.skip("No devices available for testing")
-            device_id = devices[0]["deviceId"]
+            device = devices[0]
 
         # Get current config
-        current_config = await authenticated_client.get_device_config(device_id)
+        current_config = await device.get_config()
 
         # Debug: Check timezone value
         import logging
@@ -362,7 +362,7 @@ class TestDeviceConfiguration:
                 filtered_config["timeZone"] = "America/Los_Angeles"
 
         # Set config (using same values to avoid changing device state)
-        success = await authenticated_client.set_device_config(device_id, filtered_config)
+        success = await device.set_config(filtered_config)
         assert success is True
 
 
@@ -376,15 +376,15 @@ class TestFirmwareUpdate:
         """Test checking for firmware updates."""
         # Get device ID
         if test_device_id:
-            device_id = test_device_id
+            device = await authenticated_client.get_device_by_id(test_device_id)
         else:
             devices = await authenticated_client.get_devices()
             if len(devices) == 0:
                 pytest.skip("No devices available for testing")
-            device_id = devices[0]["deviceId"]
+            device = devices[0]
 
         # Check for updates
-        update_info = await authenticated_client.check_firmware_update(device_id)
+        update_info = await device.check_firmware_update()
 
         assert isinstance(update_info, dict)
         # Update may or may not be available

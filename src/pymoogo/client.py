@@ -1,4 +1,4 @@
-"""Moogo API Client - Optimized implementation."""
+"""Moogo API Client - High-level device management and orchestration."""
 
 import asyncio
 import logging
@@ -9,11 +9,11 @@ from functools import wraps
 from types import TracebackType
 from typing import Any, TypeVar
 
-import aiohttp
 from aiohttp import ClientSession
 
+from pymoogo.api import MoogoAPI
+from pymoogo.device import MoogoDevice
 from pymoogo.exceptions import (
-    MoogoAPIError,
     MoogoAuthError,
     MoogoDeviceError,
     MoogoRateLimitError,
@@ -54,12 +54,6 @@ def retry_with_backoff(
 
     Returns:
         Decorated async function with retry logic
-
-    Example:
-        @retry_with_backoff(max_attempts=5, initial_delay=2.0)
-        async def start_spray(device_id: str) -> bool:
-            # Will retry up to 5 times with 2s initial delay
-            pass
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -109,59 +103,38 @@ def retry_with_backoff(
 
 class MoogoClient:
     """
-    Moogo API Client
+    High-level Moogo API Client for device management.
 
-    Features:
-    - Email/password authentication with automatic token management
-    - Device discovery and status monitoring
-    - Manual spray control (start/stop)
-    - Schedule management with custom durations
-    - Public data access (liquid types, schedules)
+    This client provides:
+    - Device discovery and object-oriented device management
     - Automatic retry with exponential backoff
     - Circuit breaker for offline devices
+    - Session management and authentication
+    - Caching for improved performance
+
+    Example:
+        async with MoogoClient(email, password) as client:
+            await client.authenticate()
+
+            # Get devices as objects
+            devices = await client.get_devices()
+            for device in devices:
+                print(f"{device.name}: {device.is_online}")
+
+            # Control a device
+            device = devices[0]
+            await device.start_spray()
+            await asyncio.sleep(10)
+            await device.stop_spray()
     """
-
-    BASE_URL = "https://api.moogo.com"
-    DEFAULT_TIMEOUT = 30
-
-    # Response codes
-    SUCCESS_CODE = 0
-    AUTH_INVALID_CODE = 10104
-    RATE_LIMITED_CODE = 10000
-    DEVICE_OFFLINE_CODE = 10201
-    UNAUTHORIZED_CODE = 401
-    SERVER_ERROR_CODE = 500
-
-    # API Endpoints
-    ENDPOINTS = {
-        "login": "v1/user/login",
-        "devices": "v1/devices",
-        "device_detail": "v1/devices/{device_id}",
-        "device_start": "v1/devices/{device_id}/start",
-        "device_stop": "v1/devices/{device_id}/stop",
-        "device_schedules": "v1/devices/{device_id}/schedules",
-        "device_schedule_detail": "v1/devices/{device_id}/schedules/{schedule_id}",
-        "device_logs": "v1/devices/{device_id}/logs",
-        "device_config": "v1/devices/{device_id}/configs",
-        "device_configs": "v1/devices/{device_id}/configs",  # Alias for compatibility
-        "device_ota_check": "v1/devices/{device_id}/otaCheck",
-        "device_ota_update": "v1/devices/{device_id}/otaUpdate",
-        "schedule_enable": "v1/devices/{device_id}/schedules/{schedule_id}/enable",
-        "schedule_disable": "v1/devices/{device_id}/schedules/{schedule_id}/disable",
-        "schedule_skip": "v1/devices/{device_id}/schedules/{schedule_id}/skip",
-        "schedules_enable_all": "v1/devices/{device_id}/schedules/switch/open",
-        "schedules_disable_all": "v1/devices/{device_id}/schedules/switch/close",
-        "liquid_types": "v1/liquid",
-        "recommended_schedules": "v1/devices/schedules",
-    }
 
     def __init__(
         self,
         email: str | None = None,
         password: str | None = None,
-        base_url: str = BASE_URL,
+        base_url: str = MoogoAPI.BASE_URL,
         session: ClientSession | None = None,
-        timeout: int = DEFAULT_TIMEOUT,
+        timeout: int = MoogoAPI.DEFAULT_TIMEOUT,
     ):
         """
         Initialize Moogo API client.
@@ -170,55 +143,29 @@ class MoogoClient:
             email: User email for authentication
             password: User password for authentication
             base_url: API base URL
-            session: Optional aiohttp ClientSession for session injection.
-                     If provided, the client will use this session and will NOT
-                     close it on cleanup. The caller is responsible for managing
-                     the session lifecycle. This is useful for Home Assistant
-                     integrations that use a shared session.
-            timeout: Request timeout in seconds (only used if session is not provided)
-
-        Example:
-            # Without session injection (client manages session)
-            async with MoogoClient(email="...", password="...") as client:
-                await client.authenticate()
-
-            # With session injection (caller manages session)
-            session = aiohttp.ClientSession()
-            client = MoogoClient(email="...", password="...", session=session)
-            await client.authenticate()
-            await client.close()  # Won't close the session
-            await session.close()  # Caller closes the session
+            session: Optional aiohttp ClientSession for session injection
+            timeout: Request timeout in seconds
         """
-        self.base_url = base_url.rstrip("/")
-        self.email = email
-        self.password = password
-        self.timeout_seconds = timeout  # Store timeout value, create ClientTimeout per-request
+        self._api = MoogoAPI(
+            email=email,
+            password=password,
+            base_url=base_url,
+            session=session,
+            timeout=timeout,
+        )
 
-        # Session management
-        self._session = session
-        self._session_owner = session is None
-
-        # Authentication state
-        self._token: str | None = None
-        self._user_id: str | None = None
-        self._token_expires: datetime | None = None
-
-        # Caching
-        self._devices_cache: list[dict[str, Any]] | None = None
+        # Device cache
+        self._devices_cache: list[MoogoDevice] | None = None
         self._devices_cache_time: datetime | None = None
         self._devices_cache_ttl = timedelta(minutes=5)
 
         # Circuit breaker for offline devices
         self._device_circuit_breakers: dict[str, dict[str, Any]] = {}
-        self._circuit_breaker_threshold = 5  # failures before opening circuit
-        self._circuit_breaker_timeout = timedelta(minutes=5)  # cooldown period
+        self._circuit_breaker_threshold = 5
+        self._circuit_breaker_timeout = timedelta(minutes=5)
 
     async def __aenter__(self) -> "MoogoClient":
         """Async context manager entry."""
-        if self._session is None:
-            # Don't set timeout at session level to avoid Python 3.14 compatibility issues
-            # Timeout will be applied per-request in _request() method
-            self._session = aiohttp.ClientSession()
         return self
 
     async def __aexit__(
@@ -231,234 +178,20 @@ class MoogoClient:
         await self.close()
 
     async def close(self) -> None:
-        """
-        Close the client and cleanup resources.
-
-        Note: If a session was injected via the constructor, it will NOT be closed.
-        Only sessions created internally by the client will be closed.
-        """
-        if self._session_owner and self._session:
-            await self._session.close()
-            self._session = None
+        """Close the client and cleanup resources."""
+        await self._api.close()
 
     @property
-    def session(self) -> ClientSession:
-        """
-        Get or create aiohttp session.
-
-        Python 3.14 Compatibility: Don't pass timeout to ClientSession constructor
-        to avoid event loop context issues. Timeout is applied per-request instead.
-        """
-        if self._session is None:
-            self._session = aiohttp.ClientSession()
-        return self._session
-
-    @property
-    def has_injected_session(self) -> bool:
-        """Check if client is using an injected session (not owned by client)."""
-        return not self._session_owner
+    def api(self) -> MoogoAPI:
+        """Get underlying API client."""
+        return self._api
 
     @property
     def is_authenticated(self) -> bool:
         """Check if client is authenticated with valid token."""
-        return self._token is not None and (
-            self._token_expires is None or datetime.now() < self._token_expires
-        )
+        return self._api.is_authenticated
 
-    def _get_headers(self, authenticated: bool = True) -> dict[str, str]:
-        """Build request headers."""
-        headers: dict[str, str] = {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "User-Agent": "Moogo API Client/1.0",
-        }
-        if authenticated and self._token:
-            headers["token"] = self._token
-        return headers
-
-    def _is_circuit_open(self, device_id: str) -> bool:
-        """
-        Check if circuit breaker is open for a device.
-
-        Returns:
-            True if circuit is open (device is in cooldown period)
-        """
-        if device_id not in self._device_circuit_breakers:
-            return False
-
-        breaker = self._device_circuit_breakers[device_id]
-        failures = breaker.get("failures", 0)
-        last_failure = breaker.get("last_failure")
-
-        # Circuit is open if failures exceed threshold
-        if failures >= self._circuit_breaker_threshold:
-            # Check if cooldown period has passed
-            if last_failure and datetime.now() - last_failure < self._circuit_breaker_timeout:
-                return True
-            # Cooldown passed, reset circuit
-            breaker["failures"] = 0
-
-        return False
-
-    def _record_device_failure(self, device_id: str, error: Exception | None = None) -> None:
-        """
-        Record a device failure for circuit breaker logic.
-
-        Args:
-            device_id: Device ID
-            error: Optional exception for logging (unused, for API compatibility)
-        """
-        if device_id not in self._device_circuit_breakers:
-            self._device_circuit_breakers[device_id] = {"failures": 0, "last_failure": None}
-
-        breaker = self._device_circuit_breakers[device_id]
-        breaker["failures"] = breaker.get("failures", 0) + 1
-        breaker["last_failure"] = datetime.now()
-
-        if breaker["failures"] >= self._circuit_breaker_threshold:
-            _LOGGER.warning(
-                f"Circuit breaker opened for device {device_id} "
-                f"after {breaker['failures']} failures. "
-                f"Cooldown: {self._circuit_breaker_timeout.total_seconds()}s"
-            )
-
-    def _record_device_success(self, device_id: str) -> None:
-        """Record a device success, resetting circuit breaker."""
-        if device_id not in self._device_circuit_breakers:
-            self._device_circuit_breakers[device_id] = {
-                "failures": 0,
-                "last_failure": None,
-                "last_success": datetime.now(),
-            }
-        else:
-            self._device_circuit_breakers[device_id]["failures"] = 0
-            self._device_circuit_breakers[device_id]["last_success"] = datetime.now()
-        _LOGGER.debug(f"Circuit breaker reset for device {device_id}")
-
-    def get_device_circuit_status(self, device_id: str) -> dict[str, Any]:
-        """
-        Get circuit breaker status for a device.
-
-        Args:
-            device_id: Device ID
-
-        Returns:
-            Dictionary with circuit breaker status:
-            - circuit_open: Whether circuit is currently open
-            - is_open: Whether circuit is currently open (alias)
-            - failures: Number of consecutive failures
-            - last_failure: Timestamp of last failure (or None)
-            - last_success: Timestamp of last success (or None)
-        """
-        if device_id not in self._device_circuit_breakers:
-            return {
-                "circuit_open": False,
-                "is_open": False,
-                "failures": 0,
-                "last_failure": None,
-                "last_success": None,
-            }
-
-        breaker = self._device_circuit_breakers[device_id]
-        is_open = self._is_circuit_open(device_id)
-        return {
-            "circuit_open": is_open,  # For backward compatibility with tests
-            "is_open": is_open,  # More intuitive naming
-            "failures": breaker.get("failures", 0),
-            "last_failure": breaker.get("last_failure"),
-            "last_success": breaker.get("last_success"),
-        }
-
-    async def _request(
-        self,
-        method: str,
-        endpoint: str,
-        authenticated: bool = True,
-        retry_auth: bool = True,
-        **kwargs: Any,
-    ) -> dict[str, Any]:
-        """
-        Make API request with error handling.
-
-        Args:
-            method: HTTP method
-            endpoint: API endpoint (without base URL)
-            authenticated: Whether request requires authentication
-            retry_auth: Whether to retry with reauthentication on 401
-            **kwargs: Additional arguments for aiohttp request
-
-        Returns:
-            Parsed JSON response
-
-        Raises:
-            MoogoAPIError, MoogoAuthError, MoogoRateLimitError, MoogoDeviceError
-        """
-        url = f"{self.base_url}/{endpoint.lstrip('/')}"
-        headers = self._get_headers(authenticated)
-
-        if "headers" in kwargs:
-            headers.update(kwargs.pop("headers"))
-
-        # Apply timeout per-request (Python 3.14 + pytest-asyncio compatibility)
-        # Create timeout in async context to avoid event loop issues
-        if "timeout" not in kwargs and self.timeout_seconds:
-            kwargs["timeout"] = aiohttp.ClientTimeout(total=self.timeout_seconds)
-
-        try:
-            async with self.session.request(method, url, headers=headers, **kwargs) as response:
-                # Handle HTTP errors
-                if response.status != 200:
-                    if response.status == 401 and authenticated and retry_auth:
-                        if await self._reauthenticate():
-                            return await self._request(
-                                method, endpoint, authenticated, False, **kwargs
-                            )
-                        raise MoogoAuthError("Reauthentication failed")
-                    raise MoogoAPIError(f"HTTP {response.status}: {response.reason}")
-
-                data: dict[str, Any] = await response.json()
-
-                # Handle API error codes
-                code = data.get("code")
-                message = data.get("message", "Unknown error")
-
-                if code == self.SUCCESS_CODE:
-                    return data
-
-                # Handle specific error codes
-                if code == self.AUTH_INVALID_CODE:
-                    raise MoogoAuthError(f"Invalid credentials: {message}")
-                if code == self.RATE_LIMITED_CODE:
-                    raise MoogoRateLimitError(f"Rate limited: {message}")
-                if code == self.DEVICE_OFFLINE_CODE:
-                    raise MoogoDeviceError(f"Device offline: {message}")
-                if code == self.UNAUTHORIZED_CODE and authenticated and retry_auth:
-                    if await self._reauthenticate():
-                        return await self._request(method, endpoint, authenticated, False, **kwargs)
-                    raise MoogoAuthError("Reauthentication failed")
-                if code == self.UNAUTHORIZED_CODE:
-                    raise MoogoAuthError(f"Unauthorized: {message}")
-
-                raise MoogoAPIError(f"API error {code}: {message}")
-
-        except aiohttp.ClientError as e:
-            raise MoogoAPIError(f"Request failed: {e}") from e
-
-    async def _reauthenticate(self) -> bool:
-        """Attempt to reauthenticate with stored credentials."""
-        if not self.email or not self.password:
-            return False
-
-        _LOGGER.warning("Token expired, attempting reauthentication...")
-        self._token = None
-
-        try:
-            await self.authenticate(self.email, self.password)
-            _LOGGER.info("Reauthentication successful")
-            return True
-        except Exception as e:
-            _LOGGER.error(f"Reauthentication failed: {e}")
-            return False
+    # === Authentication ===
 
     async def authenticate(
         self, email: str | None = None, password: str | None = None
@@ -471,120 +204,35 @@ class MoogoClient:
             password: User password (uses instance password if not provided)
 
         Returns:
-            Dictionary containing authentication session data:
-            {
-                "token": str,
-                "user_id": str,
-                "email": str,
-                "expires_at": str (ISO format),
-                "ttl": int (seconds)
-            }
+            Dictionary containing authentication session data
 
         Raises:
             MoogoAuthError: If authentication fails
         """
-        auth_email = email or self.email
-        auth_password = password or self.password
-
-        if not auth_email or not auth_password:
-            raise MoogoAuthError("Email and password required")
-
-        payload = {
-            "email": auth_email,
-            "password": auth_password,
-            "keep": True,
-        }
-
-        response = await self._request("POST", "v1/user/login", authenticated=False, json=payload)
-
-        user_data = response.get("data", {})
-        self._token = user_data.get("token")
-        self._user_id = user_data.get("userId")
-
-        # Calculate token expiration
-        ttl = user_data.get("ttl", 31536000)  # Default 1 year
-        self._token_expires = datetime.now() + timedelta(seconds=ttl)
-
-        _LOGGER.info(f"Authenticated user: {user_data.get('email')}")
-
-        # Return session data for storage
-        return {
-            "token": self._token,
-            "user_id": self._user_id,
-            "email": user_data.get("email"),
-            "expires_at": self._token_expires.isoformat() if self._token_expires else None,
-            "ttl": ttl,
-        }
+        return await self._api.authenticate(email, password)
 
     def get_auth_session(self) -> dict[str, Any]:
-        """
-        Get current authentication session data for storage.
-
-        Returns:
-            Dictionary containing session data:
-            {
-                "token": str | None,
-                "user_id": str | None,
-                "expires_at": str | None (ISO format),
-                "is_authenticated": bool
-            }
-
-        Example:
-            # Store session for later restoration
-            session_data = client.get_auth_session()
-            save_to_storage(session_data)
-
-            # Later, restore the session
-            client.set_auth_session(session_data)
-        """
-        return {
-            "token": self._token,
-            "user_id": self._user_id,
-            "expires_at": self._token_expires.isoformat() if self._token_expires else None,
-            "is_authenticated": self.is_authenticated,
-        }
+        """Get current authentication session data for storage."""
+        return self._api.get_auth_session()
 
     def set_auth_session(self, session_data: dict[str, Any]) -> None:
+        """Restore authentication session from stored data."""
+        self._api.set_auth_session(session_data)
+
+    # === Device Management ===
+
+    async def get_devices(self, force_refresh: bool = False) -> list[MoogoDevice]:
         """
-        Restore authentication session from stored data.
-
-        This allows you to restore a previously authenticated session without
-        re-authenticating, useful for persisting sessions across restarts.
-
-        Args:
-            session_data: Dictionary containing session data from get_auth_session()
-                         or authenticate() response.
-
-        Example:
-            # Restore from stored session
-            session_data = load_from_storage()
-            client.set_auth_session(session_data)
-
-            if client.is_authenticated:
-                devices = await client.get_devices()
-        """
-        self._token = session_data.get("token")
-        self._user_id = session_data.get("user_id")
-
-        expires_at = session_data.get("expires_at")
-        if expires_at:
-            try:
-                self._token_expires = datetime.fromisoformat(expires_at)
-            except (ValueError, TypeError):
-                _LOGGER.warning(f"Invalid expires_at format: {expires_at}")
-                self._token_expires = None
-
-        _LOGGER.info(f"Restored auth session for user: {self._user_id}")
-
-    async def get_devices(self, force_refresh: bool = False) -> list[dict[str, Any]]:
-        """
-        Get list of user's devices.
+        Get list of user's devices as MoogoDevice objects.
 
         Args:
             force_refresh: Force refresh of cached device list
 
         Returns:
-            List of device dictionaries
+            List of MoogoDevice objects
+
+        Raises:
+            MoogoAuthError: If not authenticated
         """
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
@@ -599,15 +247,58 @@ class MoogoClient:
         ):
             return self._devices_cache
 
-        response = await self._request("GET", "v1/devices")
+        response = await self._api.request("GET", "v1/devices")
         data = response.get("data", {})
-        devices: list[dict[str, Any]] = data.get("items", []) if isinstance(data, dict) else []
+        device_dicts: list[dict[str, Any]] = data.get("items", []) if isinstance(data, dict) else []
+
+        # Create MoogoDevice objects
+        devices = [
+            MoogoDevice(
+                client=self,
+                device_id=device_data.get("deviceId", ""),
+                initial_data=device_data,
+            )
+            for device_data in device_dicts
+        ]
 
         # Update cache
         self._devices_cache = devices
         self._devices_cache_time = now
 
         return devices
+
+    async def get_device(self, device_id: str) -> MoogoDevice:
+        """
+        Get a specific device by ID.
+
+        Args:
+            device_id: Device ID
+
+        Returns:
+            MoogoDevice object
+
+        Raises:
+            MoogoAuthError: If not authenticated
+        """
+        if not self.is_authenticated:
+            raise MoogoAuthError("Authentication required")
+
+        # Check cache first
+        if self._devices_cache:
+            for device in self._devices_cache:
+                if device.id == device_id:
+                    return device
+
+        # Fetch device status to get initial data
+        status = await self.get_device_status(device_id)
+        device_data = {
+            "deviceId": status.device_id,
+            "deviceName": status.device_name,
+        }
+
+        return MoogoDevice(client=self, device_id=device_id, initial_data=device_data)
+
+    # === Low-level Device Operations (used by MoogoDevice) ===
 
     async def get_device_status(self, device_id: str) -> DeviceStatus:
         """
@@ -622,19 +313,13 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("GET", f"v1/devices/{device_id}")
+        response = await self._api.request("GET", f"v1/devices/{device_id}")
         return DeviceStatus.from_dict(response.get("data", {}))
 
     @retry_with_backoff(max_attempts=5, initial_delay=2.0, backoff_factor=2.0)
     async def start_spray(self, device_id: str, mode: str | None = None) -> bool:
         """
         Start device spray/misting with retry logic and circuit breaker.
-
-        Features:
-        - Pre-flight check: Verifies device status before attempting
-        - Retry with backoff: 5 attempts with 2s initial delay (up to 30-40s total)
-        - Circuit breaker: Stops trying after 5 consecutive failures
-        - Jitter: 0-1s randomization prevents thundering herd
 
         Args:
             device_id: Device ID
@@ -645,7 +330,7 @@ class MoogoClient:
 
         Raises:
             MoogoAuthError: If not authenticated
-            MoogoDeviceError: If device is persistently offline or operation fails
+            MoogoDeviceError: If device is offline or operation fails
         """
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
@@ -658,7 +343,7 @@ class MoogoClient:
                 f"Retry after {self._circuit_breaker_timeout.total_seconds()}s cooldown."
             )
 
-        # Pre-flight check: Get device status for better error messages
+        # Pre-flight check
         try:
             status = await self.get_device_status(device_id)
             if not status.is_online:
@@ -672,17 +357,14 @@ class MoogoClient:
         payload = {"mode": mode} if mode else {}
 
         try:
-            await self._request("POST", f"v1/devices/{device_id}/start", json=payload)
-            # Success - reset circuit breaker
+            await self._api.request("POST", f"v1/devices/{device_id}/start", json=payload)
             self._record_device_success(device_id)
             _LOGGER.info(f"Started spray for device {device_id}")
             return True
         except MoogoDeviceError as e:
-            # Record failure for circuit breaker
             self._record_device_failure(device_id)
             raise MoogoDeviceError(f"Failed to start spray: {e}") from e
         except Exception as e:
-            # Record failure for circuit breaker
             self._record_device_failure(device_id)
             raise MoogoDeviceError(f"Failed to start spray: {e}") from e
 
@@ -690,12 +372,6 @@ class MoogoClient:
     async def stop_spray(self, device_id: str) -> bool:
         """
         Stop device spray/misting with retry logic and circuit breaker.
-
-        Features:
-        - Pre-flight check: Verifies device status before attempting
-        - Retry with backoff: 5 attempts with 2s initial delay (up to 30-40s total)
-        - Circuit breaker: Stops trying after 5 consecutive failures
-        - Jitter: 0-1s randomization prevents thundering herd
 
         Args:
             device_id: Device ID
@@ -705,7 +381,7 @@ class MoogoClient:
 
         Raises:
             MoogoAuthError: If not authenticated
-            MoogoDeviceError: If device is persistently offline or operation fails
+            MoogoDeviceError: If device is offline or operation fails
         """
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
@@ -718,7 +394,7 @@ class MoogoClient:
                 f"Retry after {self._circuit_breaker_timeout.total_seconds()}s cooldown."
             )
 
-        # Pre-flight check: Get device status for better error messages
+        # Pre-flight check
         try:
             status = await self.get_device_status(device_id)
             if not status.is_online:
@@ -730,19 +406,18 @@ class MoogoClient:
             _LOGGER.warning(f"Could not check device status before stop: {e}")
 
         try:
-            await self._request("POST", f"v1/devices/{device_id}/stop", json={})
-            # Success - reset circuit breaker
+            await self._api.request("POST", f"v1/devices/{device_id}/stop", json={})
             self._record_device_success(device_id)
             _LOGGER.info(f"Stopped spray for device {device_id}")
             return True
         except MoogoDeviceError as e:
-            # Record failure for circuit breaker
             self._record_device_failure(device_id)
             raise MoogoDeviceError(f"Failed to stop spray: {e}") from e
         except Exception as e:
-            # Record failure for circuit breaker
             self._record_device_failure(device_id)
             raise MoogoDeviceError(f"Failed to stop spray: {e}") from e
+
+    # === Schedule Management ===
 
     async def get_device_schedules(self, device_id: str) -> list[Schedule]:
         """
@@ -757,7 +432,7 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("GET", f"v1/devices/{device_id}/schedules")
+        response = await self._api.request("GET", f"v1/devices/{device_id}/schedules")
         items = response.get("data", {}).get("items", [])
         return [Schedule.from_dict(item) for item in items]
 
@@ -795,8 +470,10 @@ class MoogoClient:
             "status": 1 if enabled else 0,
         }
 
-        response = await self._request("POST", f"v1/devices/{device_id}/schedules", json=payload)
-        success = response.get("code") == self.SUCCESS_CODE
+        response = await self._api.request(
+            "POST", f"v1/devices/{device_id}/schedules", json=payload
+        )
+        success = response.get("code") == MoogoAPI.SUCCESS_CODE
 
         if success:
             _LOGGER.info(
@@ -815,21 +492,7 @@ class MoogoClient:
         repeat_set: str | None = None,
         enabled: bool | None = None,
     ) -> bool:
-        """
-        Update an existing schedule.
-
-        Args:
-            device_id: Device ID
-            schedule_id: Schedule ID
-            hour: Hour (0-23)
-            minute: Minute (0-59)
-            duration: Spray duration in seconds
-            repeat_set: Days to repeat
-            enabled: Whether schedule is enabled
-
-        Returns:
-            True if successful
-        """
+        """Update an existing schedule."""
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
@@ -845,10 +508,10 @@ class MoogoClient:
         if enabled is not None:
             payload["status"] = 1 if enabled else 0
 
-        response = await self._request(
+        response = await self._api.request(
             "PUT", f"v1/devices/{device_id}/schedules/{schedule_id}", json=payload
         )
-        success = response.get("code") == self.SUCCESS_CODE
+        success = response.get("code") == MoogoAPI.SUCCESS_CODE
 
         if success:
             _LOGGER.info(f"Updated schedule {schedule_id} for device {device_id}")
@@ -856,21 +519,14 @@ class MoogoClient:
         return success
 
     async def delete_schedule(self, device_id: str, schedule_id: str) -> bool:
-        """
-        Delete a spray schedule.
-
-        Args:
-            device_id: Device ID
-            schedule_id: Schedule ID
-
-        Returns:
-            True if successful
-        """
+        """Delete a spray schedule."""
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("DELETE", f"v1/devices/{device_id}/schedules/{schedule_id}")
-        success = response.get("code") == self.SUCCESS_CODE
+        response = await self._api.request(
+            "DELETE", f"v1/devices/{device_id}/schedules/{schedule_id}"
+        )
+        success = response.get("code") == MoogoAPI.SUCCESS_CODE
 
         if success:
             _LOGGER.info(f"Deleted schedule {schedule_id} for device {device_id}")
@@ -878,23 +534,14 @@ class MoogoClient:
         return success
 
     async def enable_schedule(self, device_id: str, schedule_id: str) -> bool:
-        """
-        Enable a specific schedule.
-
-        Args:
-            device_id: Device ID
-            schedule_id: Schedule ID
-
-        Returns:
-            True if successful
-        """
+        """Enable a specific schedule."""
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request(
+        response = await self._api.request(
             "PUT", f"v1/devices/{device_id}/schedules/{schedule_id}/enable", json={}
         )
-        success = response.get("code") == self.SUCCESS_CODE
+        success = response.get("code") == MoogoAPI.SUCCESS_CODE
 
         if success:
             _LOGGER.info(f"Enabled schedule {schedule_id} for device {device_id}")
@@ -902,23 +549,14 @@ class MoogoClient:
         return success
 
     async def disable_schedule(self, device_id: str, schedule_id: str) -> bool:
-        """
-        Disable a specific schedule.
-
-        Args:
-            device_id: Device ID
-            schedule_id: Schedule ID
-
-        Returns:
-            True if successful
-        """
+        """Disable a specific schedule."""
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request(
+        response = await self._api.request(
             "PUT", f"v1/devices/{device_id}/schedules/{schedule_id}/disable", json={}
         )
-        success = response.get("code") == self.SUCCESS_CODE
+        success = response.get("code") == MoogoAPI.SUCCESS_CODE
 
         if success:
             _LOGGER.info(f"Disabled schedule {schedule_id} for device {device_id}")
@@ -926,23 +564,14 @@ class MoogoClient:
         return success
 
     async def skip_schedule(self, device_id: str, schedule_id: str) -> bool:
-        """
-        Skip the next occurrence of a schedule.
-
-        Args:
-            device_id: Device ID
-            schedule_id: Schedule ID
-
-        Returns:
-            True if successful
-        """
+        """Skip the next occurrence of a schedule."""
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request(
+        response = await self._api.request(
             "PUT", f"v1/devices/{device_id}/schedules/{schedule_id}/skip", json={}
         )
-        success = response.get("code") == self.SUCCESS_CODE
+        success = response.get("code") == MoogoAPI.SUCCESS_CODE
 
         if success:
             _LOGGER.info(
@@ -952,22 +581,14 @@ class MoogoClient:
         return success
 
     async def enable_all_schedules(self, device_id: str) -> bool:
-        """
-        Enable all schedules for a device.
-
-        Args:
-            device_id: Device ID
-
-        Returns:
-            True if successful
-        """
+        """Enable all schedules for a device."""
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request(
+        response = await self._api.request(
             "PUT", f"v1/devices/{device_id}/schedules/switch/open", json={}
         )
-        success = response.get("code") == self.SUCCESS_CODE
+        success = response.get("code") == MoogoAPI.SUCCESS_CODE
 
         if success:
             _LOGGER.info(f"Enabled all schedules for device {device_id}")
@@ -975,27 +596,21 @@ class MoogoClient:
         return success
 
     async def disable_all_schedules(self, device_id: str) -> bool:
-        """
-        Disable all schedules for a device.
-
-        Args:
-            device_id: Device ID
-
-        Returns:
-            True if successful
-        """
+        """Disable all schedules for a device."""
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request(
+        response = await self._api.request(
             "PUT", f"v1/devices/{device_id}/schedules/switch/close", json={}
         )
-        success = response.get("code") == self.SUCCESS_CODE
+        success = response.get("code") == MoogoAPI.SUCCESS_CODE
 
         if success:
             _LOGGER.info(f"Disabled all schedules for device {device_id}")
 
         return success
+
+    # === Device Logs ===
 
     async def get_device_logs(
         self,
@@ -1005,19 +620,7 @@ class MoogoClient:
         page: int = 1,
         page_size: int = 20,
     ) -> dict[str, Any]:
-        """
-        Get device operation logs with optional date filtering and pagination.
-
-        Args:
-            device_id: Device ID
-            start_date: Start date filter (YYYY-MM-DD format), optional
-            end_date: End date filter (YYYY-MM-DD format), optional
-            page: Page number (default: 1)
-            page_size: Items per page (default: 20)
-
-        Returns:
-            Dictionary containing logs and pagination info
-        """
+        """Get device operation logs."""
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
@@ -1027,117 +630,145 @@ class MoogoClient:
         if end_date:
             params["endDate"] = end_date
 
-        response = await self._request("GET", f"v1/devices/{device_id}/logs", params=params)
+        response = await self._api.request("GET", f"v1/devices/{device_id}/logs", params=params)
         data: dict[str, Any] = response.get("data", {})
         return data
 
+    # === Device Configuration ===
+
     async def get_device_config(self, device_id: str) -> dict[str, Any]:
-        """
-        Get device configuration settings.
-
-        Args:
-            device_id: Device ID
-
-        Returns:
-            Dictionary containing device configuration
-        """
+        """Get device configuration settings."""
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("GET", f"v1/devices/{device_id}/configs")
+        response = await self._api.request("GET", f"v1/devices/{device_id}/configs")
         data: dict[str, Any] = response.get("data", {})
         return data
 
     async def set_device_config(self, device_id: str, config: dict[str, Any]) -> bool:
-        """
-        Update device configuration settings.
-
-        Args:
-            device_id: Device ID
-            config: Configuration dictionary
-
-        Returns:
-            True if successful
-        """
+        """Update device configuration settings."""
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("PUT", f"v1/devices/{device_id}/configs", json=config)
-        success = response.get("code") == self.SUCCESS_CODE
+        response = await self._api.request("PUT", f"v1/devices/{device_id}/configs", json=config)
+        success = response.get("code") == MoogoAPI.SUCCESS_CODE
 
         if success:
             _LOGGER.info(f"Updated configuration for device {device_id}")
 
         return success
 
+    # === Firmware Management ===
+
     async def check_firmware_update(self, device_id: str) -> dict[str, Any]:
-        """
-        Check if firmware update is available for a device.
-
-        Args:
-            device_id: Device ID
-
-        Returns:
-            Dictionary containing update information (available, version, url, etc.)
-        """
+        """Check if firmware update is available."""
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("POST", f"v1/devices/{device_id}/otaCheck", json={})
+        response = await self._api.request("POST", f"v1/devices/{device_id}/otaCheck", json={})
         data: dict[str, Any] = response.get("data", {})
         return data
 
     async def trigger_firmware_update(self, device_id: str) -> bool:
-        """
-        Trigger OTA firmware update for a device.
-
-        Args:
-            device_id: Device ID
-
-        Returns:
-            True if update was triggered successfully
-        """
+        """Trigger OTA firmware update."""
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        response = await self._request("POST", f"v1/devices/{device_id}/otaUpdate", json={})
-        success = response.get("code") == self.SUCCESS_CODE
+        response = await self._api.request("POST", f"v1/devices/{device_id}/otaUpdate", json={})
+        success = response.get("code") == MoogoAPI.SUCCESS_CODE
 
         if success:
             _LOGGER.info(f"Triggered firmware update for device {device_id}")
 
         return success
 
-    async def get_liquid_types(self) -> list[dict[str, Any]]:
-        """
-        Get available liquid concentrate types (public endpoint).
+    # === Public Data ===
 
-        Returns:
-            List of liquid type dictionaries
-        """
-        response = await self._request("GET", "v1/liquid", authenticated=False)
+    async def get_liquid_types(self) -> list[dict[str, Any]]:
+        """Get available liquid concentrate types (public endpoint)."""
+        response = await self._api.request("GET", "v1/liquid", authenticated=False)
         data = response.get("data", [])
         return data if isinstance(data, list) else []
 
     async def get_recommended_schedules(self) -> list[dict[str, Any]]:
-        """
-        Get recommended spray schedules (public endpoint).
-
-        Returns:
-            List of schedule dictionaries
-        """
-        response = await self._request("GET", "v1/devices/schedules", authenticated=False)
+        """Get recommended spray schedules (public endpoint)."""
+        response = await self._api.request("GET", "v1/devices/schedules", authenticated=False)
         data = response.get("data", {})
         items = data.get("items", []) if isinstance(data, dict) else []
         return items if isinstance(items, list) else []
 
-    async def test_connection(self) -> bool:
-        """
-        Test API connectivity.
+    # === Circuit Breaker ===
 
-        Returns:
-            True if API is accessible
-        """
+    def _is_circuit_open(self, device_id: str) -> bool:
+        """Check if circuit breaker is open for a device."""
+        if device_id not in self._device_circuit_breakers:
+            return False
+
+        breaker = self._device_circuit_breakers[device_id]
+        failures = breaker.get("failures", 0)
+        last_failure = breaker.get("last_failure")
+
+        if failures >= self._circuit_breaker_threshold:
+            if last_failure and datetime.now() - last_failure < self._circuit_breaker_timeout:
+                return True
+            breaker["failures"] = 0
+
+        return False
+
+    def _record_device_failure(self, device_id: str, error: Exception | None = None) -> None:
+        """Record a device failure for circuit breaker logic."""
+        if device_id not in self._device_circuit_breakers:
+            self._device_circuit_breakers[device_id] = {"failures": 0, "last_failure": None}
+
+        breaker = self._device_circuit_breakers[device_id]
+        breaker["failures"] = breaker.get("failures", 0) + 1
+        breaker["last_failure"] = datetime.now()
+
+        if breaker["failures"] >= self._circuit_breaker_threshold:
+            _LOGGER.warning(
+                f"Circuit breaker opened for device {device_id} "
+                f"after {breaker['failures']} failures. "
+                f"Cooldown: {self._circuit_breaker_timeout.total_seconds()}s"
+            )
+
+    def _record_device_success(self, device_id: str) -> None:
+        """Record a device success, resetting circuit breaker."""
+        if device_id not in self._device_circuit_breakers:
+            self._device_circuit_breakers[device_id] = {
+                "failures": 0,
+                "last_failure": None,
+                "last_success": datetime.now(),
+            }
+        else:
+            self._device_circuit_breakers[device_id]["failures"] = 0
+            self._device_circuit_breakers[device_id]["last_success"] = datetime.now()
+        _LOGGER.debug(f"Circuit breaker reset for device {device_id}")
+
+    def get_device_circuit_status(self, device_id: str) -> dict[str, Any]:
+        """Get circuit breaker status for a device."""
+        if device_id not in self._device_circuit_breakers:
+            return {
+                "circuit_open": False,
+                "is_open": False,
+                "failures": 0,
+                "last_failure": None,
+                "last_success": None,
+            }
+
+        breaker = self._device_circuit_breakers[device_id]
+        is_open = self._is_circuit_open(device_id)
+        return {
+            "circuit_open": is_open,
+            "is_open": is_open,
+            "failures": breaker.get("failures", 0),
+            "last_failure": breaker.get("last_failure"),
+            "last_success": breaker.get("last_success"),
+        }
+
+    # === Utility ===
+
+    async def test_connection(self) -> bool:
+        """Test API connectivity."""
         try:
             await self.get_liquid_types()
             if self.is_authenticated:

@@ -1,4 +1,4 @@
-"""Basic usage example for pymoogo client library."""
+"""Basic usage example for pymoogo client library - Object-oriented API."""
 
 import asyncio
 import logging
@@ -16,7 +16,7 @@ load_dotenv()
 
 
 async def main():
-    """Demonstrate basic pymoogo usage."""
+    """Demonstrate basic pymoogo usage with device objects."""
     email = os.getenv("MOOGO_EMAIL")
     password = os.getenv("MOOGO_PASSWORD")
 
@@ -26,7 +26,7 @@ async def main():
 
     async with MoogoClient(email=email, password=password) as client:
         print("=" * 60)
-        print("Moogo API Client - Basic Usage Example")
+        print("Moogo API Client - Object-Oriented Usage Example")
         print("=" * 60)
 
         # Authenticate
@@ -34,7 +34,7 @@ async def main():
         await client.authenticate()
         print(f"   ✓ Authenticated: {client.is_authenticated}")
 
-        # Get devices
+        # Get devices as MoogoDevice objects
         print("\n2. Getting devices...")
         devices = await client.get_devices()
         print(f"   ✓ Found {len(devices)} device(s)")
@@ -43,30 +43,30 @@ async def main():
             print("\n   No devices found. Please add a device to your account.")
             return
 
-        # Display device information
+        # Display device information using device objects
         print("\n3. Device Information:")
         for i, device in enumerate(devices, 1):
-            device_id = device.get("deviceId")
-            device_name = device.get("deviceName", "Unknown")
-            print(f"\n   Device {i}: {device_name}")
-            print(f"   ID: {device_id}")
+            print(f"\n   Device {i}: {device.name}")
+            print(f"   ID: {device.id}")
 
-            # Get detailed status
-            status = await client.get_device_status(device_id)
+            # Refresh device status
+            await device.refresh()
             print("   Status:")
-            print(f"     - Online: {'Yes' if status.is_online else 'No'}")
-            print(f"     - Running: {'Yes' if status.is_running else 'No'}")
-            print(f"     - Temperature: {status.temperature}°C")
-            print(f"     - Humidity: {status.humidity}%")
-            print(f"     - Water Level: {status.water_level}")
-            print(f"     - Liquid Level: {status.liquid_level}")
-            print(f"     - Firmware: {status.firmware}")
-            print(f"     - WiFi Signal: {status.rssi} dBm")
+            print(f"     - Online: {'Yes' if device.is_online else 'No'}")
+            print(f"     - Running: {'Yes' if device.is_running else 'No'}")
+            print(f"     - Temperature: {device.temperature}°C")
+            print(f"     - Humidity: {device.humidity}%")
+            print(f"     - Water Level: {device.water_level}")
+            print(f"     - Liquid Level: {device.liquid_level}")
+            print(f"     - Firmware: {device.firmware}")
+            print(f"     - WiFi Signal: {device.rssi} dBm")
 
-        # Get schedules for first device
-        device_id = devices[0].get("deviceId")
-        print(f"\n4. Schedules for {devices[0].get('deviceName')}:")
-        schedules = await client.get_device_schedules(device_id)
+        # Work with first device
+        device = devices[0]
+
+        # Get schedules using device object
+        print(f"\n4. Schedules for {device.name}:")
+        schedules = await device.get_schedules()
 
         if schedules:
             for schedule in schedules:
@@ -76,26 +76,26 @@ async def main():
         else:
             print("   No schedules configured")
 
-        # Test spray control (commented out for safety)
+        # Test spray control using device methods (commented out for safety)
         print("\n5. Spray Control Test (DISABLED):")
         print("   To test spray control, uncomment the code below")
         print("   and ensure your device is online.")
 
         # Uncomment to test spray control:
-        # if status.is_online:
+        # if device.is_online:
         #     print(f"   Starting spray...")
-        #     await client.start_spray(device_id)
+        #     await device.start_spray()
         #     print(f"   ✓ Spray started")
         #
         #     await asyncio.sleep(5)
         #
         #     print(f"   Stopping spray...")
-        #     await client.stop_spray(device_id)
+        #     await device.stop_spray()
         #     print(f"   ✓ Spray stopped")
         # else:
         #     print(f"   Device is offline, skipping spray test")
 
-        # Get public data
+        # Get public data (still available on client)
         print("\n6. Public Data:")
         liquid_types = await client.get_liquid_types()
         print(f"   Liquid Types: {len(liquid_types)} available")

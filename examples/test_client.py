@@ -1,4 +1,4 @@
-"""Quick test script for pymoogo client."""
+"""Quick test script for pymoogo client - Object-oriented API."""
 
 import asyncio
 import logging
@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
 
 async def main():
-    """Test pymoogo client with real credentials."""
+    """Test pymoogo client with device objects."""
     # Load credentials from .env file
     env_path = os.path.join(os.path.dirname(__file__), ".env")
     credentials = {}
@@ -36,7 +36,7 @@ async def main():
         return
 
     print("=" * 60)
-    print("Testing pymoogo Client")
+    print("Testing pymoogo Client - Object-Oriented API")
     print("=" * 60)
 
     async with MoogoClient(email=email, password=password) as client:
@@ -49,7 +49,7 @@ async def main():
             print(f"✗ Authentication failed: {e}")
             return
 
-        # Test 2: Get devices
+        # Test 2: Get devices as MoogoDevice objects
         print("\n[2/5] Getting devices...")
         try:
             devices = await client.get_devices()
@@ -57,7 +57,7 @@ async def main():
 
             if devices:
                 for i, device in enumerate(devices, 1):
-                    print(f"   Device {i}: {device.get('deviceName')} ({device.get('deviceId')})")
+                    print(f"   Device {i}: {device.name} ({device.id})")
         except Exception as e:
             print(f"✗ Failed to get devices: {e}")
             return
@@ -66,25 +66,27 @@ async def main():
             print("\n⚠ No devices found. Cannot continue testing.")
             return
 
-        # Test 3: Get device status
+        # Work with first device
+        device = devices[0]
+
+        # Test 3: Get device status using device object
         print("\n[3/5] Getting device status...")
         try:
-            device_id = devices[0].get("deviceId")
-            status = await client.get_device_status(device_id)
+            await device.refresh()
             print("✓ Device status retrieved:")
-            print(f"   Name: {status.device_name}")
-            print(f"   Online: {status.is_online}")
-            print(f"   Running: {status.is_running}")
-            print(f"   Temperature: {status.temperature}°C")
-            print(f"   Humidity: {status.humidity}%")
-            print(f"   Firmware: {status.firmware}")
+            print(f"   Name: {device.name}")
+            print(f"   Online: {device.is_online}")
+            print(f"   Running: {device.is_running}")
+            print(f"   Temperature: {device.temperature}°C")
+            print(f"   Humidity: {device.humidity}%")
+            print(f"   Firmware: {device.firmware}")
         except Exception as e:
             print(f"✗ Failed to get device status: {e}")
 
-        # Test 4: Get schedules
+        # Test 4: Get schedules using device object
         print("\n[4/5] Getting schedules...")
         try:
-            schedules = await client.get_device_schedules(device_id)
+            schedules = await device.get_schedules()
             print(f"✓ Found {len(schedules)} schedule(s)")
             if schedules:
                 for schedule in schedules:
