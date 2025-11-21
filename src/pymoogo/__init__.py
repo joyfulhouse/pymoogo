@@ -20,7 +20,7 @@ from pymoogo.exceptions import (
 )
 from pymoogo.models import DeviceStatus, Schedule
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 __all__ = [
     "MoogoAPI",
     "MoogoClient",
