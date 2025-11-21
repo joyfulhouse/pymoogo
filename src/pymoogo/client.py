@@ -72,8 +72,8 @@ def retry_with_backoff(
                 except retry_on as e:
                     last_exception = e
                     if attempt == max_attempts:
-                        _LOGGER.error(
-                            f"Max retry attempts ({max_attempts}) reached for {func.__name__}: {e}"
+                        _LOGGER.warning(
+                            f"{func.__name__} failed after {max_attempts} attempts: {e}"
                         )
                         raise
 
@@ -83,7 +83,8 @@ def retry_with_backoff(
                         # Add 0-1s random jitter to prevent synchronized retries
                         current_delay += random.random()
 
-                    _LOGGER.warning(
+                    # Use debug level for retry attempts to avoid log spam
+                    _LOGGER.debug(
                         f"{func.__name__} attempt {attempt}/{max_attempts} failed: {e}. "
                         f"Retrying in {current_delay:.2f}s..."
                     )
