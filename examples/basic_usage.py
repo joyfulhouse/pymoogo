@@ -50,7 +50,7 @@ async def main():
             print(f"   ID: {device.id}")
 
             # Refresh device status
-            status = await device.refresh()
+            await device.refresh()
             print("   Status:")
             print(f"     - Online: {'Yes' if device.is_online else 'No'}")
             print(f"     - Running: {'Yes' if device.is_running else 'No'}")
