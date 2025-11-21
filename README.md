@@ -36,26 +36,28 @@ async def main():
         # Authenticate
         await client.authenticate()
 
-        # Get devices
+        # Get devices (returns MoogoDevice objects)
         devices = await client.get_devices()
         print(f"Found {len(devices)} devices")
 
-        # Get device status
+        # Work with device objects
         if devices:
-            device_id = devices[0]["deviceId"]
-            status = await client.get_device_status(device_id)
-            print(f"Device: {status.device_name}")
-            print(f"Online: {status.is_online}")
-            print(f"Running: {status.is_running}")
+            device = devices[0]
 
-            # Start spray
-            await client.start_spray(device_id)
+            # Refresh device status
+            await device.refresh()
+            print(f"Device: {device.name}")
+            print(f"Online: {device.is_online}")
+            print(f"Running: {device.is_running}")
+
+            # Start spray using device object
+            await device.start_spray()
 
             # Wait a bit
             await asyncio.sleep(5)
 
             # Stop spray
-            await client.stop_spray(device_id)
+            await device.stop_spray()
 
 asyncio.run(main())
 ```
@@ -95,7 +97,12 @@ client = MoogoClient(
 
 # Use the client
 await client.authenticate()
-devices = await client.get_devices()
+devices = await client.get_devices()  # Returns MoogoDevice objects
+
+# Work with device objects
+for device in devices:
+    await device.refresh()
+    print(f"{device.name}: {device.is_online}")
 
 # Check if using injected session
 print(f"Using injected session: {client.has_injected_session}")
@@ -153,50 +160,58 @@ else:
 ### Device Discovery and Status
 
 ```python
-# Get all devices
+# Get all devices as MoogoDevice objects
 devices = await client.get_devices()
 
 for device in devices:
-    device_id = device["deviceId"]
+    # Refresh device status
+    await device.refresh()
 
-    # Get detailed status
-    status = await client.get_device_status(device_id)
-
-    print(f"Device: {status.device_name}")
-    print(f"  Online: {status.is_online}")
-    print(f"  Running: {status.is_running}")
-    print(f"  Temperature: {status.temperature}°C")
-    print(f"  Humidity: {status.humidity}%")
-    print(f"  Water Level: {status.water_level}")
-    print(f"  Liquid Level: {status.liquid_level}")
+    print(f"Device: {device.name}")
+    print(f"  ID: {device.id}")
+    print(f"  Online: {device.is_online}")
+    print(f"  Running: {device.is_running}")
+    print(f"  Temperature: {device.temperature}°C")
+    print(f"  Humidity: {device.humidity}%")
+    print(f"  Water Level: {device.water_level}")
+    print(f"  Liquid Level: {device.liquid_level}")
+    print(f"  Firmware: {device.firmware}")
 ```
 
 ### Spray Control
 
 ```python
-device_id = "your_device_id"
+# Get device object
+devices = await client.get_devices()
+device = devices[0]
 
-# Start spray
-await client.start_spray(device_id)
+# Start spray using device object
+await device.start_spray()
 
 # Stop spray
-await client.stop_spray(device_id)
+await device.stop_spray()
+
+# Start spray with duration (uses temporary schedule)
+await device.start_spray_with_duration(duration=60, cleanup=True)
 ```
 
 ### Schedule Management
 
 ```python
-device_id = "your_device_id"
+# Get device object
+devices = await client.get_devices()
+device = devices[0]
 
 # Get existing schedules
-schedules = await client.get_device_schedules(device_id)
+schedules = await device.get_schedules()
 for schedule in schedules:
     print(f"Schedule: {schedule.time_str} for {schedule.duration}s")
+    print(f"  Enabled: {schedule.is_enabled}")
+    print(f"  Repeat: {schedule.repeat_set}")
 
 # Create a new schedule
 # Spray every day at 8:00 AM for 60 seconds
-await client.create_schedule(
-    device_id=device_id,
+await device.create_schedule(
     hour=8,
     minute=0,
     duration=60,
@@ -205,15 +220,22 @@ await client.create_schedule(
 )
 
 # Update a schedule
-await client.update_schedule(
-    device_id=device_id,
+await device.update_schedule(
     schedule_id="schedule_id",
     duration=120,  # Change to 120 seconds
     enabled=False  # Disable schedule
 )
 
+# Enable/disable specific schedule
+await device.enable_schedule("schedule_id")
+await device.disable_schedule("schedule_id")
+
+# Bulk operations
+await device.enable_all_schedules()
+await device.disable_all_schedules()
+
 # Delete a schedule
-await client.delete_schedule(device_id, schedule_id)
+await device.delete_schedule("schedule_id")
 ```
 
 ### Public Endpoints (No Authentication Required)
@@ -284,8 +306,12 @@ from pymoogo import (
     MoogoRateLimitError,
 )
 
+# Get device object
+devices = await client.get_devices()
+device = devices[0]
+
 try:
-    await client.start_spray(device_id)
+    await device.start_spray()
 except MoogoAuthError:
     print("Authentication failed")
 except MoogoDeviceError:
