@@ -1,283 +1,406 @@
-"""Unit tests for MoogoClient core functionality."""
+"""Unit tests for MoogoClient - High-level device management."""
 
-from datetime import datetime, timedelta
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from pymoogo import (
-    MoogoClient,
-    MoogoDeviceError,
-)
+from pymoogo import MoogoAPI, MoogoClient, MoogoDevice
+from pymoogo.exceptions import MoogoAuthError
+from pymoogo.models import DeviceStatus, Schedule
+
+
+@pytest.fixture
+def mock_api():
+    """Create a mock MoogoAPI instance."""
+    api = Mock(spec=MoogoAPI)
+    api.is_authenticated = True
+    api.BASE_URL = "https://api.moogo.com"
+    api.DEFAULT_TIMEOUT = 30
+    api.SUCCESS_CODE = 0
+    return api
+
+
+@pytest.fixture
+def client(mock_api):
+    """Create MoogoClient with mocked API."""
+    with patch("pymoogo.client.MoogoAPI", return_value=mock_api):
+        client = MoogoClient(email="test@example.com", password="testpass")
+        client._api = mock_api
+        return client
 
 
 @pytest.mark.unit
 class TestClientInitialization:
-    """Test client initialization and configuration."""
+    """Test MoogoClient initialization."""
 
-    def test_client_init_with_credentials(self, mock_credentials):
+    def test_client_init_with_credentials(self):
         """Test client initialization with email and password."""
-        client = MoogoClient(
-            email=mock_credentials["email"],
-            password=mock_credentials["password"],
-        )
+        with patch("pymoogo.client.MoogoAPI") as mock_api_class:
+            MoogoClient(email="test@example.com", password="testpass")
 
-        assert client.email == mock_credentials["email"]
-        assert client.password == mock_credentials["password"]
-        assert client.base_url == "https://api.moogo.com"
-        assert not client.is_authenticated
+            mock_api_class.assert_called_once_with(
+                email="test@example.com",
+                password="testpass",
+                base_url=MoogoAPI.BASE_URL,
+                session=None,
+                timeout=MoogoAPI.DEFAULT_TIMEOUT,
+            )
 
     def test_client_init_without_credentials(self):
         """Test client initialization without credentials."""
-        client = MoogoClient()
+        with patch("pymoogo.client.MoogoAPI") as mock_api_class:
+            MoogoClient()
 
-        assert client.email is None
-        assert client.password is None
-        assert not client.is_authenticated
+            mock_api_class.assert_called_once()
 
-    def test_client_init_custom_base_url(self, mock_credentials):
+    def test_client_init_custom_base_url(self):
         """Test client initialization with custom base URL."""
         custom_url = "https://api-test.moogo.com"
-        client = MoogoClient(
-            email=mock_credentials["email"],
-            password=mock_credentials["password"],
-            base_url=custom_url,
+        with patch("pymoogo.client.MoogoAPI") as mock_api_class:
+            MoogoClient(
+                email="test@example.com",
+                password="testpass",
+                base_url=custom_url,
+            )
+
+            mock_api_class.assert_called_once()
+            assert mock_api_class.call_args[1]["base_url"] == custom_url
+
+
+@pytest.mark.unit
+class TestClientAuthentication:
+    """Test MoogoClient authentication."""
+
+    @pytest.mark.asyncio
+    async def test_authenticate(self, client, mock_api):
+        """Test authenticate delegates to API."""
+        mock_api.authenticate = AsyncMock(
+            return_value={"token": "test-token", "user_id": "user-123"}
         )
 
-        assert client.base_url == custom_url
+        result = await client.authenticate()
 
-    def test_client_base_url_trailing_slash_removed(self, mock_credentials):
-        """Test that trailing slash is removed from base URL."""
-        client = MoogoClient(
-            email=mock_credentials["email"],
-            password=mock_credentials["password"],
-            base_url="https://api.moogo.com/",
+        assert result["token"] == "test-token"
+        mock_api.authenticate.assert_called_once_with(None, None)
+
+    @pytest.mark.asyncio
+    async def test_authenticate_with_credentials(self, client, mock_api):
+        """Test authenticate with explicit credentials."""
+        mock_api.authenticate = AsyncMock(
+            return_value={"token": "test-token", "user_id": "user-123"}
         )
 
-        assert client.base_url == "https://api.moogo.com"
+        await client.authenticate(email="custom@example.com", password="custompass")
+
+        mock_api.authenticate.assert_called_once_with("custom@example.com", "custompass")
+
+    def test_is_authenticated_property(self, client, mock_api):
+        """Test is_authenticated delegates to API."""
+        mock_api.is_authenticated = True
+        assert client.is_authenticated is True
+
+        mock_api.is_authenticated = False
+        assert client.is_authenticated is False
 
 
 @pytest.mark.unit
-class TestAuthenticationState:
-    """Test authentication state management."""
+class TestClientDeviceManagement:
+    """Test MoogoClient device management."""
 
-    def test_is_authenticated_false_initially(self, mock_credentials):
-        """Test that client is not authenticated initially."""
-        client = MoogoClient(**mock_credentials)
-        assert not client.is_authenticated
+    @pytest.mark.asyncio
+    async def test_get_devices(self, client, mock_api):
+        """Test get_devices returns MoogoDevice objects."""
+        mock_api.request = AsyncMock(
+            return_value={
+                "code": 0,
+                "data": {
+                    "items": [
+                        {"deviceId": "dev-1", "deviceName": "Device 1"},
+                        {"deviceId": "dev-2", "deviceName": "Device 2"},
+                    ]
+                },
+            }
+        )
 
-    def test_is_authenticated_with_valid_token(self, mock_credentials):
-        """Test authentication state with valid token."""
-        client = MoogoClient(**mock_credentials)
-        client._token = "test_token"
-        client._authenticated = True
-        client._token_expires = datetime.now() + timedelta(hours=1)
+        devices = await client.get_devices()
 
-        assert client.is_authenticated
+        assert len(devices) == 2
+        assert all(isinstance(d, MoogoDevice) for d in devices)
+        assert devices[0].id == "dev-1"
+        assert devices[0].name == "Device 1"
+        assert devices[1].id == "dev-2"
+        assert devices[1].name == "Device 2"
 
-    def test_is_authenticated_with_expired_token(self, mock_credentials):
-        """Test authentication state with expired token."""
-        client = MoogoClient(**mock_credentials)
-        client._token = "test_token"
-        client._authenticated = True
-        client._token_expires = datetime.now() - timedelta(hours=1)
+    @pytest.mark.asyncio
+    async def test_get_devices_not_authenticated(self, client, mock_api):
+        """Test get_devices raises error if not authenticated."""
+        mock_api.is_authenticated = False
 
-        assert not client.is_authenticated
+        with pytest.raises(MoogoAuthError, match="Authentication required"):
+            await client.get_devices()
 
-    def test_is_authenticated_with_no_expiry(self, mock_credentials):
-        """Test authentication state with no token expiry set."""
-        client = MoogoClient(**mock_credentials)
-        client._token = "test_token"
-        client._authenticated = True
-        client._token_expires = None
+    @pytest.mark.asyncio
+    async def test_get_devices_caching(self, client, mock_api):
+        """Test get_devices uses cache."""
+        mock_api.request = AsyncMock(
+            return_value={
+                "code": 0,
+                "data": {"items": [{"deviceId": "dev-1", "deviceName": "Device 1"}]},
+            }
+        )
 
-        assert client.is_authenticated
+        # First call
+        devices1 = await client.get_devices()
+        first_call_count = mock_api.request.call_count
+
+        # Second call should use cache
+        devices2 = await client.get_devices()
+
+        assert mock_api.request.call_count == first_call_count
+        assert devices1 == devices2
+
+    @pytest.mark.asyncio
+    async def test_get_devices_force_refresh(self, client, mock_api):
+        """Test get_devices with force_refresh bypasses cache."""
+        mock_api.request = AsyncMock(
+            return_value={
+                "code": 0,
+                "data": {"items": [{"deviceId": "dev-1", "deviceName": "Device 1"}]},
+            }
+        )
+
+        # First call
+        await client.get_devices()
+        first_call_count = mock_api.request.call_count
+
+        # Second call with force_refresh should call API again
+        await client.get_devices(force_refresh=True)
+
+        assert mock_api.request.call_count > first_call_count
+
+    @pytest.mark.asyncio
+    async def test_get_device_by_id(self, client, mock_api):
+        """Test get_device by ID."""
+        device_status = DeviceStatus(
+            device_id="dev-1",
+            device_name="Device 1",
+            online_status=1,
+            run_status=0,
+            rssi=-50,
+            temperature=25.0,
+            humidity=60,
+            liquid_level=80,
+            water_level=90,
+            mix_ratio=10,
+            firmware="1.0.0",
+        )
+        client.get_device_status = AsyncMock(return_value=device_status)
+
+        device = await client.get_device("dev-1")
+
+        assert isinstance(device, MoogoDevice)
+        assert device.id == "dev-1"
 
 
 @pytest.mark.unit
-class TestHeaders:
-    """Test request header generation."""
+class TestClientDeviceOperations:
+    """Test MoogoClient device operations (low-level)."""
 
-    def test_headers_without_auth(self, mock_credentials):
-        """Test headers for unauthenticated requests."""
-        client = MoogoClient(**mock_credentials)
-        headers = client._get_headers(authenticated=False)
+    @pytest.mark.asyncio
+    async def test_get_device_status(self, client, mock_api):
+        """Test get_device_status."""
+        mock_api.request = AsyncMock(
+            return_value={
+                "code": 0,
+                "data": {
+                    "deviceId": "dev-1",
+                    "deviceName": "Device 1",
+                    "onlineStatus": 1,
+                    "runStatus": 0,
+                    "rssi": -50,
+                    "temperature": 25.0,
+                    "humidity": 60,
+                    "liquid_level": 80,
+                    "water_level": 90,
+                    "mixRatio": 10,
+                    "firmware": "1.0.0",
+                },
+            }
+        )
 
-        assert "token" not in headers
-        assert headers["Content-Type"] == "application/json"
-        assert headers["Accept"] == "application/json"
-        assert "User-Agent" in headers
+        status = await client.get_device_status("dev-1")
 
-    def test_headers_with_auth_and_token(self, mock_credentials):
-        """Test headers for authenticated requests with token."""
-        client = MoogoClient(**mock_credentials)
-        client._token = "test_token_12345"
-        headers = client._get_headers(authenticated=True)
-
-        assert headers["token"] == "test_token_12345"
-        assert headers["Content-Type"] == "application/json"
-
-    def test_headers_with_auth_but_no_token(self, mock_credentials):
-        """Test headers for authenticated requests without token."""
-        client = MoogoClient(**mock_credentials)
-        headers = client._get_headers(authenticated=True)
-
-        assert "token" not in headers
+        assert isinstance(status, DeviceStatus)
+        assert status.device_id == "dev-1"
+        assert status.is_online is True
 
 
 @pytest.mark.unit
-class TestCircuitBreaker:
-    """Test circuit breaker functionality."""
+class TestClientCircuitBreaker:
+    """Test MoogoClient circuit breaker."""
 
-    def test_circuit_breaker_initially_closed(self, mock_credentials):
-        """Test that circuit breaker is closed initially."""
-        client = MoogoClient(**mock_credentials)
-        assert not client._is_circuit_open("device_123")
+    def test_circuit_breaker_initially_closed(self, client):
+        """Test circuit breaker is closed initially."""
+        assert client._is_circuit_open("dev-1") is False
 
-    def test_record_device_failure(self, mock_credentials):
-        """Test recording device failures."""
-        client = MoogoClient(**mock_credentials)
-        error = MoogoDeviceError("Test error")
-
-        client._record_device_failure("device_123", error)
-        circuit = client._device_circuit_breakers["device_123"]
-
-        assert circuit["failures"] == 1
-        assert circuit["last_failure"] is not None
-
-    def test_circuit_opens_after_threshold(self, mock_credentials):
-        """Test that circuit opens after failure threshold."""
-        client = MoogoClient(**mock_credentials)
-        client._circuit_breaker_threshold = 3
-        error = MoogoDeviceError("Test error")
+    def test_circuit_breaker_opens_after_threshold(self, client):
+        """Test circuit breaker opens after threshold failures."""
+        device_id = "dev-1"
 
         # Record failures up to threshold
-        for _ in range(3):
-            client._record_device_failure("device_123", error)
+        for _ in range(client._circuit_breaker_threshold):
+            client._record_device_failure(device_id)
 
-        assert client._is_circuit_open("device_123")
+        assert client._is_circuit_open(device_id) is True
 
-    def test_record_device_success_resets_circuit(self, mock_credentials):
-        """Test that success resets circuit breaker."""
-        client = MoogoClient(**mock_credentials)
-        error = MoogoDeviceError("Test error")
+    def test_circuit_breaker_resets_on_success(self, client):
+        """Test circuit breaker resets on success."""
+        device_id = "dev-1"
 
         # Record some failures
-        client._record_device_failure("device_123", error)
-        client._record_device_failure("device_123", error)
+        for _ in range(3):
+            client._record_device_failure(device_id)
 
         # Record success
-        client._record_device_success("device_123")
+        client._record_device_success(device_id)
 
-        circuit = client._device_circuit_breakers["device_123"]
-        assert circuit["failures"] == 0
-        assert circuit["last_success"] is not None
+        assert client._is_circuit_open(device_id) is False
 
-    def test_circuit_closes_after_timeout(self, mock_credentials):
-        """Test that circuit closes after timeout period."""
-        client = MoogoClient(**mock_credentials)
-        client._circuit_breaker_threshold = 3
-        client._circuit_breaker_timeout = timedelta(seconds=1)
-        error = MoogoDeviceError("Test error")
+    def test_get_device_circuit_status(self, client):
+        """Test get_device_circuit_status."""
+        device_id = "dev-1"
 
-        # Open the circuit
-        for _ in range(3):
-            client._record_device_failure("device_123", error)
+        status = client.get_device_circuit_status(device_id)
 
-        assert client._is_circuit_open("device_123")
-
-        # Manually set last failure to past timeout
-        client._device_circuit_breakers["device_123"]["last_failure"] = datetime.now() - timedelta(
-            seconds=2
-        )
-
-        # Circuit should now be closed
-        assert not client._is_circuit_open("device_123")
-
-    def test_get_device_circuit_status(self, mock_credentials):
-        """Test getting circuit breaker status."""
-        client = MoogoClient(**mock_credentials)
-
-        # No circuit data
-        status = client.get_device_circuit_status("device_123")
-        assert not status["circuit_open"]
+        assert status["circuit_open"] is False
+        assert status["is_open"] is False
         assert status["failures"] == 0
+        assert status["last_failure"] is None
+        assert status["last_success"] is None
 
-        # With circuit data
-        error = MoogoDeviceError("Test error")
-        client._record_device_failure("device_456", error)
-        status = client.get_device_circuit_status("device_456")
+    def test_get_device_circuit_status_after_failures(self, client):
+        """Test circuit status after failures."""
+        device_id = "dev-1"
+        client._record_device_failure(device_id)
+        client._record_device_failure(device_id)
 
-        assert status["failures"] == 1
+        status = client.get_device_circuit_status(device_id)
+
+        assert status["failures"] == 2
         assert status["last_failure"] is not None
 
 
 @pytest.mark.unit
-class TestDeviceCaching:
-    """Test device list caching."""
+class TestClientScheduleManagement:
+    """Test MoogoClient schedule management."""
 
-    def test_cache_initially_empty(self, mock_credentials):
-        """Test that device cache is empty initially."""
-        client = MoogoClient(**mock_credentials)
-        assert client._devices_cache is None
-        assert client._devices_cache_time is None
-
-    def test_cache_ttl_configuration(self, mock_credentials):
-        """Test cache TTL configuration."""
-        client = MoogoClient(**mock_credentials)
-        assert client._devices_cache_ttl == timedelta(minutes=5)
-
-
-@pytest.mark.unit
-class TestEndpointConfiguration:
-    """Test endpoint URL configuration."""
-
-    def test_all_endpoints_defined(self, mock_credentials):
-        """Test that all required endpoints are defined."""
-        client = MoogoClient(**mock_credentials)
-
-        required_endpoints = [
-            "login",
-            "devices",
-            "device_detail",
-            "device_start",
-            "device_stop",
-            "device_schedules",
-            "device_configs",
-            "device_logs",
-            "device_ota_check",
-            "device_ota_update",
-            "liquid_types",
-        ]
-
-        for endpoint in required_endpoints:
-            assert endpoint in client.ENDPOINTS
-
-    def test_endpoint_formatting(self, mock_credentials):
-        """Test endpoint URL formatting with parameters."""
-        client = MoogoClient(**mock_credentials)
-
-        # Test device endpoint formatting
-        device_endpoint = client.ENDPOINTS["device_detail"].format(device_id="test_device_123")
-        assert device_endpoint == "v1/devices/test_device_123"
-
-        # Test schedule endpoint formatting
-        schedule_endpoint = client.ENDPOINTS["device_schedule_detail"].format(
-            device_id="device_123", schedule_id="schedule_456"
+    @pytest.mark.asyncio
+    async def test_get_device_schedules(self, client, mock_api):
+        """Test get_device_schedules."""
+        mock_api.request = AsyncMock(
+            return_value={
+                "code": 0,
+                "data": {
+                    "items": [
+                        {
+                            "id": "1",
+                            "hour": 8,
+                            "minute": 0,
+                            "duration": 60,
+                            "repeatSet": "0,1,2,3,4,5,6",
+                            "status": 1,
+                        }
+                    ]
+                },
+            }
         )
-        assert schedule_endpoint == "v1/devices/device_123/schedules/schedule_456"
+
+        schedules = await client.get_device_schedules("dev-1")
+
+        assert len(schedules) == 1
+        assert isinstance(schedules[0], Schedule)
+        assert schedules[0].hour == 8
+
+    @pytest.mark.asyncio
+    async def test_create_schedule(self, client, mock_api):
+        """Test create_schedule."""
+        mock_api.request = AsyncMock(return_value={"code": 0})
+
+        result = await client.create_schedule("dev-1", hour=8, minute=30, duration=120)
+
+        assert result is True
+        mock_api.request.assert_called_once()
 
 
 @pytest.mark.unit
-class TestResponseCodes:
-    """Test API response code constants."""
+class TestClientPublicData:
+    """Test MoogoClient public data access."""
 
-    def test_response_codes_defined(self, mock_credentials):
-        """Test that response codes are properly defined."""
-        client = MoogoClient(**mock_credentials)
+    @pytest.mark.asyncio
+    async def test_get_liquid_types(self, client, mock_api):
+        """Test get_liquid_types."""
+        mock_api.request = AsyncMock(
+            return_value={"code": 0, "data": [{"id": "1", "name": "Type 1"}]}
+        )
 
-        assert client.SUCCESS_CODE == 0
-        assert client.AUTH_INVALID_CODE == 10104
-        assert client.RATE_LIMITED_CODE == 10000
-        assert client.DEVICE_OFFLINE_CODE == 10201
-        assert client.SERVER_ERROR_CODE == 500
-        assert client.UNAUTHORIZED_CODE == 401
+        liquid_types = await client.get_liquid_types()
+
+        assert len(liquid_types) == 1
+        assert liquid_types[0]["name"] == "Type 1"
+        mock_api.request.assert_called_once_with("GET", "v1/liquid", authenticated=False)
+
+    @pytest.mark.asyncio
+    async def test_get_recommended_schedules(self, client, mock_api):
+        """Test get_recommended_schedules."""
+        mock_api.request = AsyncMock(
+            return_value={"code": 0, "data": {"items": [{"id": "1", "name": "Schedule 1"}]}}
+        )
+
+        schedules = await client.get_recommended_schedules()
+
+        assert len(schedules) == 1
+        assert schedules[0]["name"] == "Schedule 1"
+        mock_api.request.assert_called_once_with("GET", "v1/devices/schedules", authenticated=False)
+
+
+@pytest.mark.unit
+class TestClientUtility:
+    """Test MoogoClient utility methods."""
+
+    @pytest.mark.asyncio
+    async def test_test_connection_authenticated(self, client, mock_api):
+        """Test test_connection when authenticated."""
+        mock_api.request = AsyncMock(return_value={"code": 0, "data": []})
+
+        result = await client.test_connection()
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_test_connection_failure(self, client, mock_api):
+        """Test test_connection on failure."""
+        mock_api.request = AsyncMock(side_effect=Exception("Connection failed"))
+
+        result = await client.test_connection()
+
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_close(self, client, mock_api):
+        """Test close delegates to API."""
+        mock_api.close = AsyncMock()
+
+        await client.close()
+
+        mock_api.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_context_manager(self, mock_api):
+        """Test async context manager."""
+        with patch("pymoogo.client.MoogoAPI", return_value=mock_api):
+            mock_api.close = AsyncMock()
+
+            async with MoogoClient(email="test@example.com", password="testpass") as client:
+                assert client is not None
+
+            mock_api.close.assert_called_once()

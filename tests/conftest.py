@@ -88,43 +88,41 @@ async def authenticated_client() -> Any:
         try:
             expires_at = datetime.fromisoformat(cached_expires)
             if expires_at > datetime.now():
-                # Inject cached session
-                client._token = cached_token
-                client._user_id = cached_user_id
-                client._token_expires = expires_at
+                # Inject cached session into API layer
+                client._api._token = cached_token
+                client._api._user_id = cached_user_id
+                client._api._token_expires = expires_at
 
-                # Verify session is actually valid by making a test request
-                async with client:
-                    try:
-                        await client.get_devices()  # Quick API test
-                        session_valid = True
-                        _LOGGER.info("Using cached session (valid)")
-                        yield client
-                        return
-                    except Exception as e:
-                        _LOGGER.warning(f"Cached session invalid: {e}. Re-authenticating...")
-                        session_valid = False
+                # Session looks valid based on expiration time, use it
+                session_valid = True
+                _LOGGER.info("Using cached session (appears valid)")
+                yield client
+                # Clean up
+                await client.close()
+                return
         except Exception as e:
             _LOGGER.warning(f"Failed to load cached session: {e}")
             pass  # Invalid cached session, will reauthenticate
 
     # Authenticate if no valid cached session
     if not session_valid:
-        async with client:
-            _LOGGER.info("Authenticating with credentials (no valid cached session)")
-            await client.authenticate()
+        client = MoogoClient(email=email, password=password)
+        _LOGGER.info("Authenticating with credentials (no valid cached session)")
+        await client.authenticate()
 
-            # Cache the session for future tests
-            session_data = client.get_auth_session()
-            _update_env_cache(
-                session_data["token"], session_data["user_id"], session_data["expires_at"]
-            )
-            _LOGGER.info(
-                f"New session cached (expires: {session_data['expires_at']}). "
-                "Update GitHub secrets if running in CI."
-            )
+        # Cache the session for future tests
+        session_data = client.get_auth_session()
+        _update_env_cache(
+            session_data["token"], session_data["user_id"], session_data["expires_at"]
+        )
+        _LOGGER.info(
+            f"New session cached (expires: {session_data['expires_at']}). "
+            "Update GitHub secrets if running in CI."
+        )
 
-            yield client
+        yield client
+        # Clean up
+        await client.close()
 
 
 def _update_env_cache(token: str, user_id: str, expires_at: str | None) -> None:
