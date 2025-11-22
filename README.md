@@ -141,7 +141,7 @@ with open("session.json", "r") as f:
     saved_session = json.load(f)
 
 client = MoogoClient()
-client.set_auth_session(saved_session)
+client.restore_session(saved_session)
 
 if client.is_authenticated:
     # Use client without re-authenticating
@@ -153,8 +153,8 @@ else:
 
 **Session management methods:**
 - `await client.authenticate()` - Returns session data dictionary
-- `client.get_auth_session()` - Get current session state
-- `client.set_auth_session(data)` - Restore saved session
+- `client.export_session()` - Export current session state for storage
+- `client.restore_session(data)` - Restore saved session
 - `client.is_authenticated` - Check if session is valid
 
 ### Device Discovery and Status

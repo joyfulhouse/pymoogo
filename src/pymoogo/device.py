@@ -131,39 +131,39 @@ class MoogoDevice:
         return self._status.is_running if self._status else False
 
     @property
-    def temperature(self) -> float:
-        """Get ambient temperature (0.0 if status not available)."""
-        return self._status.temperature if self._status else 0.0
+    def temperature(self) -> float | None:
+        """Get ambient temperature (None if status not available)."""
+        return self._status.temperature if self._status else None
 
     @property
-    def humidity(self) -> int:
-        """Get ambient humidity (0 if status not available)."""
-        return self._status.humidity if self._status else 0
+    def humidity(self) -> int | None:
+        """Get ambient humidity (None if status not available)."""
+        return self._status.humidity if self._status else None
 
     @property
-    def water_level(self) -> int:
-        """Get water reservoir level (0 if status not available)."""
-        return self._status.water_level if self._status else 0
+    def water_level(self) -> int | None:
+        """Get water reservoir level (None if status not available)."""
+        return self._status.water_level if self._status else None
 
     @property
-    def liquid_level(self) -> int:
-        """Get liquid concentrate level (0 if status not available)."""
-        return self._status.liquid_level if self._status else 0
+    def liquid_level(self) -> int | None:
+        """Get liquid concentrate level (None if status not available)."""
+        return self._status.liquid_level if self._status else None
 
     @property
-    def mix_ratio(self) -> int:
-        """Get concentrate mixing ratio (0 if status not available)."""
-        return self._status.mix_ratio if self._status else 0
+    def mix_ratio(self) -> int | None:
+        """Get concentrate mixing ratio (None if status not available)."""
+        return self._status.mix_ratio if self._status else None
 
     @property
-    def firmware(self) -> str:
-        """Get firmware version (empty string if status not available)."""
-        return self._status.firmware if self._status else ""
+    def firmware(self) -> str | None:
+        """Get firmware version (None if status not available)."""
+        return self._status.firmware if self._status else None
 
     @property
-    def rssi(self) -> int:
-        """Get WiFi signal strength in dBm (0 if status not available)."""
-        return self._status.rssi if self._status else 0
+    def rssi(self) -> int | None:
+        """Get WiFi signal strength in dBm (None if status not available)."""
+        return self._status.rssi if self._status else None
 
     # === Status Management ===
 
@@ -482,7 +482,7 @@ class MoogoDevice:
             - last_failure: Timestamp of last failure (or None)
             - last_success: Timestamp of last success (or None)
         """
-        return self._client.get_device_circuit_status(self._device_id)
+        return self._client.device_circuit_status(self._device_id)
 
     # === Utility Methods ===
 

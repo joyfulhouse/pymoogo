@@ -190,7 +190,7 @@ async def request(self, method: str, endpoint: str,
 **Status:** ❌ **NOT IMPLEMENTED**
 - No UI reconfiguration (library only)
 - Configuration changes require code changes
-- `set_auth_session()` allows session reuse
+- `restore_session()` allows session reuse
 
 **Recommendation:** Home Assistant integration should implement config flow.
 

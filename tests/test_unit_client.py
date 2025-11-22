@@ -266,11 +266,11 @@ class TestClientCircuitBreaker:
 
         assert client._is_circuit_open(device_id) is False
 
-    def test_get_device_circuit_status(self, client):
-        """Test get_device_circuit_status."""
+    def test_device_circuit_status(self, client):
+        """Test device_circuit_status."""
         device_id = "dev-1"
 
-        status = client.get_device_circuit_status(device_id)
+        status = client.device_circuit_status(device_id)
 
         assert status["circuit_open"] is False
         assert status["is_open"] is False
@@ -278,13 +278,13 @@ class TestClientCircuitBreaker:
         assert status["last_failure"] is None
         assert status["last_success"] is None
 
-    def test_get_device_circuit_status_after_failures(self, client):
+    def test_device_circuit_status_after_failures(self, client):
         """Test circuit status after failures."""
         device_id = "dev-1"
         client._record_device_failure(device_id)
         client._record_device_failure(device_id)
 
-        status = client.get_device_circuit_status(device_id)
+        status = client.device_circuit_status(device_id)
 
         assert status["failures"] == 2
         assert status["last_failure"] is not None

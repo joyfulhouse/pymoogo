@@ -212,13 +212,13 @@ class MoogoClient:
         """
         return await self._api.authenticate(email, password)
 
-    def get_auth_session(self) -> dict[str, Any]:
-        """Get current authentication session data for storage."""
-        return self._api.get_auth_session()
+    def export_session(self) -> dict[str, Any]:
+        """Export current authentication session data for storage."""
+        return self._api.export_session()
 
-    def set_auth_session(self, session_data: dict[str, Any]) -> None:
+    def restore_session(self, session_data: dict[str, Any]) -> None:
         """Restore authentication session from stored data."""
-        self._api.set_auth_session(session_data)
+        self._api.restore_session(session_data)
 
     # === Device Management ===
 
@@ -745,7 +745,7 @@ class MoogoClient:
             self._device_circuit_breakers[device_id]["last_success"] = datetime.now()
         _LOGGER.debug(f"Circuit breaker reset for device {device_id}")
 
-    def get_device_circuit_status(self, device_id: str) -> dict[str, Any]:
+    def device_circuit_status(self, device_id: str) -> dict[str, Any]:
         """Get circuit breaker status for a device."""
         if device_id not in self._device_circuit_breakers:
             return {

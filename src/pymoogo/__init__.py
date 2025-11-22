@@ -20,15 +20,21 @@ from pymoogo.exceptions import (
 )
 from pymoogo.models import DeviceStatus, Schedule
 
-__version__ = "1.1.0"
+# Constants are available via pymoogo.constants but not in main namespace
+# to avoid cluttering the API
+
+__version__ = "1.2.0"
 __all__ = [
+    # Main classes
     "MoogoAPI",
     "MoogoClient",
     "MoogoDevice",
+    # Exceptions
     "MoogoAPIError",
     "MoogoAuthError",
     "MoogoDeviceError",
     "MoogoRateLimitError",
+    # Data models
     "DeviceStatus",
     "Schedule",
 ]

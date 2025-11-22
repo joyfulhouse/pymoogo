@@ -81,10 +81,11 @@ class MoogoAPI:
             session: Optional aiohttp ClientSession
             timeout: Request timeout in seconds
         """
-        self.base_url = base_url.rstrip("/")
-        self.email = email
-        self.password = password
-        self.timeout_seconds = timeout
+        # Configuration (private with property access)
+        self._base_url = base_url.rstrip("/")
+        self._email = email
+        self._password = password
+        self._timeout_seconds = timeout
 
         # Session management
         self._session = session
@@ -113,6 +114,16 @@ class MoogoAPI:
         return self._token is not None and (
             self._token_expires is None or datetime.now() < self._token_expires
         )
+
+    @property
+    def base_url(self) -> str:
+        """Get API base URL."""
+        return self._base_url
+
+    @property
+    def timeout_seconds(self) -> int:
+        """Get request timeout in seconds."""
+        return self._timeout_seconds
 
     async def close(self) -> None:
         """Close the API client and cleanup resources."""
@@ -158,15 +169,15 @@ class MoogoAPI:
             MoogoRateLimitError: For rate limit errors
             MoogoDeviceError: For device-specific errors
         """
-        url = f"{self.base_url}/{endpoint.lstrip('/')}"
+        url = f"{self._base_url}/{endpoint.lstrip('/')}"
         headers = self._get_headers(authenticated)
 
         if "headers" in kwargs:
             headers.update(kwargs.pop("headers"))
 
         # Apply timeout per-request
-        if "timeout" not in kwargs and self.timeout_seconds:
-            kwargs["timeout"] = aiohttp.ClientTimeout(total=self.timeout_seconds)
+        if "timeout" not in kwargs and self._timeout_seconds:
+            kwargs["timeout"] = aiohttp.ClientTimeout(total=self._timeout_seconds)
 
         try:
             async with self.session.request(method, url, headers=headers, **kwargs) as response:
@@ -210,14 +221,14 @@ class MoogoAPI:
 
     async def _reauthenticate(self) -> bool:
         """Attempt to reauthenticate with stored credentials."""
-        if not self.email or not self.password:
+        if not self._email or not self._password:
             return False
 
         _LOGGER.warning("Token expired, attempting reauthentication...")
         self._token = None
 
         try:
-            await self.authenticate(self.email, self.password)
+            await self.authenticate(self._email, self._password)
             _LOGGER.info("Reauthentication successful")
             return True
         except Exception as e:
@@ -240,8 +251,8 @@ class MoogoAPI:
         Raises:
             MoogoAuthError: If authentication fails
         """
-        auth_email = email or self.email
-        auth_password = password or self.password
+        auth_email = email or self._email
+        auth_password = password or self._password
 
         if not auth_email or not auth_password:
             raise MoogoAuthError("Email and password required")
@@ -272,8 +283,8 @@ class MoogoAPI:
             "ttl": ttl,
         }
 
-    def get_auth_session(self) -> dict[str, Any]:
-        """Get current authentication session data."""
+    def export_session(self) -> dict[str, Any]:
+        """Export current authentication session data for storage."""
         return {
             "token": self._token,
             "user_id": self._user_id,
@@ -281,7 +292,7 @@ class MoogoAPI:
             "is_authenticated": self.is_authenticated,
         }
 
-    def set_auth_session(self, session_data: dict[str, Any]) -> None:
+    def restore_session(self, session_data: dict[str, Any]) -> None:
         """Restore authentication session from stored data."""
         self._token = session_data.get("token")
         self._user_id = session_data.get("user_id")

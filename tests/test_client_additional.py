@@ -225,11 +225,12 @@ class TestCircuitBreakerIntegration:
 
         mock_response = {"code": 0, "message": "success"}
 
-        with patch.object(
-            client_with_mocked_api, "_is_circuit_open", return_value=False
-        ), patch.object(
-            client_with_mocked_api, "get_device_status", return_value=offline_status
-        ) as mock_status:
+        with (
+            patch.object(client_with_mocked_api, "_is_circuit_open", return_value=False),
+            patch.object(
+                client_with_mocked_api, "get_device_status", return_value=offline_status
+            ) as mock_status,
+        ):
             client_with_mocked_api._api.request = AsyncMock(return_value=mock_response)
 
             success = await client_with_mocked_api.start_spray("device_123")
@@ -242,13 +243,14 @@ class TestCircuitBreakerIntegration:
         """Test start_spray handles status check exceptions gracefully."""
         mock_response = {"code": 0, "message": "success"}
 
-        with patch.object(
-            client_with_mocked_api, "_is_circuit_open", return_value=False
-        ), patch.object(
-            client_with_mocked_api,
-            "get_device_status",
-            side_effect=Exception("Network error"),
-        ) as mock_status:
+        with (
+            patch.object(client_with_mocked_api, "_is_circuit_open", return_value=False),
+            patch.object(
+                client_with_mocked_api,
+                "get_device_status",
+                side_effect=Exception("Network error"),
+            ) as mock_status,
+        ):
             client_with_mocked_api._api.request = AsyncMock(return_value=mock_response)
 
             success = await client_with_mocked_api.start_spray("device_123")
@@ -261,13 +263,11 @@ class TestCircuitBreakerIntegration:
         """Test start_spray records device success."""
         mock_response = {"code": 0, "message": "success"}
 
-        with patch.object(
-            client_with_mocked_api, "_is_circuit_open", return_value=False
-        ), patch.object(
-            client_with_mocked_api, "get_device_status", side_effect=Exception()
-        ), patch.object(
-            client_with_mocked_api, "_record_device_success"
-        ) as mock_record:
+        with (
+            patch.object(client_with_mocked_api, "_is_circuit_open", return_value=False),
+            patch.object(client_with_mocked_api, "get_device_status", side_effect=Exception()),
+            patch.object(client_with_mocked_api, "_record_device_success") as mock_record,
+        ):
             client_with_mocked_api._api.request = AsyncMock(return_value=mock_response)
 
             await client_with_mocked_api.start_spray("device_123")
@@ -279,13 +279,11 @@ class TestCircuitBreakerIntegration:
         """Test start_spray records device failure on MoogoDeviceError."""
         from pymoogo import MoogoDeviceError
 
-        with patch.object(
-            client_with_mocked_api, "_is_circuit_open", return_value=False
-        ), patch.object(
-            client_with_mocked_api, "get_device_status", side_effect=Exception()
-        ), patch.object(
-            client_with_mocked_api, "_record_device_failure"
-        ) as mock_record:
+        with (
+            patch.object(client_with_mocked_api, "_is_circuit_open", return_value=False),
+            patch.object(client_with_mocked_api, "get_device_status", side_effect=Exception()),
+            patch.object(client_with_mocked_api, "_record_device_failure") as mock_record,
+        ):
             client_with_mocked_api._api.request = AsyncMock(
                 side_effect=MoogoDeviceError("Device offline")
             )
@@ -298,20 +296,14 @@ class TestCircuitBreakerIntegration:
             mock_record.assert_called_with("device_123")
 
     @pytest.mark.asyncio
-    async def test_start_spray_records_failure_on_generic_exception(
-        self, client_with_mocked_api
-    ):
+    async def test_start_spray_records_failure_on_generic_exception(self, client_with_mocked_api):
         """Test start_spray records device failure on generic Exception."""
-        with patch.object(
-            client_with_mocked_api, "_is_circuit_open", return_value=False
-        ), patch.object(
-            client_with_mocked_api, "get_device_status", side_effect=Exception()
-        ), patch.object(
-            client_with_mocked_api, "_record_device_failure"
-        ) as mock_record:
-            client_with_mocked_api._api.request = AsyncMock(
-                side_effect=Exception("Network error")
-            )
+        with (
+            patch.object(client_with_mocked_api, "_is_circuit_open", return_value=False),
+            patch.object(client_with_mocked_api, "get_device_status", side_effect=Exception()),
+            patch.object(client_with_mocked_api, "_record_device_failure") as mock_record,
+        ):
+            client_with_mocked_api._api.request = AsyncMock(side_effect=Exception("Network error"))
 
             with pytest.raises(MoogoDeviceError):
                 await client_with_mocked_api.start_spray("device_123")

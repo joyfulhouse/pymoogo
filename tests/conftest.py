@@ -111,7 +111,7 @@ async def authenticated_client() -> Any:
         await client.authenticate()
 
         # Cache the session for future tests
-        session_data = client.get_auth_session()
+        session_data = client.export_session()
         _update_env_cache(
             session_data["token"], session_data["user_id"], session_data["expires_at"]
         )

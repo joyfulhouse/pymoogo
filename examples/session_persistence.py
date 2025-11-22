@@ -84,9 +84,9 @@ async def example_save_session():
         print("\n2. Saving session from authenticate() response...")
         save_session(auth_response)
 
-        # Or get current session
-        print("\n3. Getting current session state...")
-        session_data = client.get_auth_session()
+        # Or export current session
+        print("\n3. Exporting current session state...")
+        session_data = client.export_session()
         print(f"   Is authenticated: {session_data['is_authenticated']}")
         print(f"   User ID: {session_data['user_id']}")
 
@@ -114,7 +114,7 @@ async def example_restore_session():
     async with MoogoClient() as client:
         # Restore session
         print("\n2. Restoring session...")
-        client.set_auth_session(session_data)
+        client.restore_session(session_data)
 
         print("   ✓ Session restored")
         print(f"   Is authenticated: {client.is_authenticated}")
@@ -177,7 +177,7 @@ async def example_session_lifecycle():
         saved_session = load_session()
 
         if saved_session:
-            client.set_auth_session(saved_session)
+            client.restore_session(saved_session)
 
             if client.is_authenticated:
                 print("   ✓ Restored valid session, skipping authentication")
@@ -199,7 +199,7 @@ async def example_session_lifecycle():
 
         # Step 5: Periodic session refresh
         print("\n[Runtime] Checking if session needs refresh...")
-        current_session = client.get_auth_session()
+        current_session = client.export_session()
         if not current_session["is_authenticated"]:
             print("   ⚠ Session expired, re-authenticating...")
             auth_data = await client.authenticate()
@@ -209,7 +209,7 @@ async def example_session_lifecycle():
 
         # Step 6: Shutdown
         print("\n[Shutdown] Saving session before shutdown...")
-        final_session = client.get_auth_session()
+        final_session = client.export_session()
         save_session(final_session)
 
         await client.close()

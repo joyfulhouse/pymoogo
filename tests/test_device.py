@@ -73,16 +73,16 @@ class TestMoogoDeviceProperties:
         assert device.status_age is None
 
     def test_default_properties_without_status(self, device):
-        """Test properties return defaults when status not available."""
+        """Test properties return None when status not available."""
         assert device.is_online is False
         assert device.is_running is False
-        assert device.temperature == 0.0
-        assert device.humidity == 0
-        assert device.water_level == 0
-        assert device.liquid_level == 0
-        assert device.mix_ratio == 0
-        assert device.firmware == ""
-        assert device.rssi == 0
+        assert device.temperature is None
+        assert device.humidity is None
+        assert device.water_level is None
+        assert device.liquid_level is None
+        assert device.mix_ratio is None
+        assert device.firmware is None
+        assert device.rssi is None
 
 
 class TestMoogoDeviceStatusManagement:
@@ -416,12 +416,12 @@ class TestMoogoDeviceCircuitBreaker:
     def test_circuit_status(self, device, mock_client):
         """Test circuit breaker status."""
         circuit_status = {"circuit_open": False, "is_open": False, "failures": 0}
-        mock_client.get_device_circuit_status = Mock(return_value=circuit_status)
+        mock_client.device_circuit_status = Mock(return_value=circuit_status)
 
         result = device.circuit_status
 
         assert result == circuit_status
-        mock_client.get_device_circuit_status.assert_called_once_with("test-device-123")
+        mock_client.device_circuit_status.assert_called_once_with("test-device-123")
 
 
 class TestMoogoDeviceUtility:

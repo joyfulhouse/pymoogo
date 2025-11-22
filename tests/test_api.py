@@ -42,8 +42,10 @@ class TestMoogoAPIInit:
     def test_init_basic(self):
         """Test basic initialization."""
         api = MoogoAPI(email="test@example.com", password="testpass")
-        assert api.email == "test@example.com"
-        assert api.password == "testpass"
+        # Credentials are stored privately (no public access)
+        assert api._email == "test@example.com"
+        assert api._password == "testpass"
+        # Configuration accessible via properties
         assert api.base_url == "https://api.moogo.com"
         assert api.timeout_seconds == 30
         assert api._session is None
@@ -257,13 +259,13 @@ class TestMoogoAPIAuthentication:
 class TestMoogoAPISessionManagement:
     """Test MoogoAPI session management."""
 
-    def test_get_auth_session(self, api):
-        """Test get_auth_session."""
+    def test_export_session(self, api):
+        """Test export_session."""
         api._token = "test-token"
         api._user_id = "user-123"
         api._token_expires = datetime(2025, 1, 1, 12, 0, 0)
 
-        session_data = api.get_auth_session()
+        session_data = api.export_session()
 
         assert session_data["token"] == "test-token"
         assert session_data["user_id"] == "user-123"
@@ -271,29 +273,29 @@ class TestMoogoAPISessionManagement:
         # is_authenticated will be False because token is expired (before current date)
         assert session_data["is_authenticated"] is False
 
-    def test_set_auth_session(self, api):
-        """Test set_auth_session."""
+    def test_restore_session(self, api):
+        """Test restore_session."""
         session_data = {
             "token": "restored-token",
             "user_id": "restored-user",
             "expires_at": "2025-01-01T12:00:00",
         }
 
-        api.set_auth_session(session_data)
+        api.restore_session(session_data)
 
         assert api._token == "restored-token"
         assert api._user_id == "restored-user"
         assert api._token_expires == datetime(2025, 1, 1, 12, 0, 0)
 
-    def test_set_auth_session_invalid_expires_at(self, api):
-        """Test set_auth_session with invalid expires_at."""
+    def test_restore_session_invalid_expires_at(self, api):
+        """Test restore_session with invalid expires_at."""
         session_data = {
             "token": "restored-token",
             "user_id": "restored-user",
             "expires_at": "invalid-date",
         }
 
-        api.set_auth_session(session_data)
+        api.restore_session(session_data)
 
         assert api._token == "restored-token"
         assert api._token_expires is None
@@ -374,8 +376,8 @@ class TestMoogoAPIReauthentication:
     @pytest.mark.asyncio
     async def test_reauthentication_fails_without_credentials(self, api):
         """Test reauthentication fails without stored credentials."""
-        api.email = None
-        api.password = None
+        api._email = None
+        api._password = None
 
         error_response = create_mock_response(status=401)
         error_response.reason = "Unauthorized"

@@ -1,6 +1,5 @@
 """Comprehensive tests for data models."""
 
-
 from pymoogo.models import DeviceStatus, Schedule
 
 
@@ -274,7 +273,7 @@ class TestScheduleModel:
             status=1,
         )
 
-        result = schedule.to_dict()
+        result = schedule.to_api_dict()
 
         assert result == {
             "hour": 10,
@@ -283,7 +282,7 @@ class TestScheduleModel:
             "repeatSet": "0,6",
             "status": 1,
         }
-        # Note: ID is not included in to_dict (used for updates)
+        # Note: ID is not included in to_api_dict (used for updates)
 
     def test_schedule_equality(self):
         """Test Schedule equality comparison."""

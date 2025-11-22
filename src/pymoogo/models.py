@@ -3,6 +3,12 @@
 from dataclasses import dataclass
 from typing import Any
 
+from pymoogo.constants import (
+    ONLINE_STATUS_ONLINE,
+    RUN_STATUS_RUNNING,
+    SCHEDULE_STATUS_ENABLED,
+)
+
 
 @dataclass
 class DeviceStatus:
@@ -44,12 +50,17 @@ class DeviceStatus:
     @property
     def is_online(self) -> bool:
         """Check if device is online."""
-        return self.online_status == 1
+        return self.online_status == ONLINE_STATUS_ONLINE
 
     @property
     def is_running(self) -> bool:
         """Check if device is currently spraying."""
-        return self.run_status == 1
+        return self.run_status == RUN_STATUS_RUNNING
+
+    @property
+    def signal_strength(self) -> int:
+        """WiFi signal strength in dBm (alias for rssi)."""
+        return self.rssi
 
 
 @dataclass
@@ -78,15 +89,15 @@ class Schedule:
     @property
     def is_enabled(self) -> bool:
         """Check if schedule is enabled."""
-        return self.status == 1
+        return self.status == SCHEDULE_STATUS_ENABLED
 
     @property
     def time_str(self) -> str:
         """Get formatted time string."""
         return f"{self.hour:02d}:{self.minute:02d}"
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert to API request dictionary."""
+    def to_api_dict(self) -> dict[str, Any]:
+        """Convert to API request dictionary with proper field name mapping."""
         return {
             "hour": self.hour,
             "minute": self.minute,
@@ -94,3 +105,6 @@ class Schedule:
             "repeatSet": self.repeat_set,
             "status": self.status,
         }
+
+
+__all__ = ["DeviceStatus", "Schedule"]
