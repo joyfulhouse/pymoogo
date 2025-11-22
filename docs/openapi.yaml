@@ -1,0 +1,1786 @@
+openapi: 3.0.3
+info:
+  title: Moogo API
+  description: |
+    Moogo Smart Spray System API
+
+    This API provides control over Moogo smart spray/misting devices including:
+    - User authentication with token-based sessions
+    - Device discovery and monitoring
+    - Manual and scheduled spray control
+    - Schedule management with custom durations
+    - Public data access (liquid types, recommended schedules)
+
+    **Authentication:**
+    Uses custom token header authentication. After successful login, include the token
+    in the `token` header (not `Authorization: Bearer <token>`).
+
+    **Response Format:**
+    All responses follow the format:
+    ```json
+    {
+      "code": 0,
+      "message": "success",
+      "data": {...}
+    }
+    ```
+    Success code is `0` (not HTTP status alone).
+
+    **Error Codes:**
+    - `0` - Success
+    - `10000` - Rate limited (24-hour lockout)
+    - `10104` - Invalid credentials
+    - `10201` - Device offline
+    - `401` - Unauthorized
+    - `500` - Server error
+
+  version: 1.1.8
+  contact:
+    name: Community Project
+    url: https://github.com/joyfulhouse/pymoogo/issues
+  license:
+    name: Proprietary
+servers:
+  - url: https://api.moogo.com
+    description: Production server
+
+security:
+  - TokenAuth: []
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Account Management
+    description: User account operations (password, email, profile)
+  - name: Devices
+    description: Device discovery, status, and management
+  - name: Device Control
+    description: Manual spray control operations
+  - name: Schedules
+    description: Schedule management for automated spraying
+  - name: Device Sharing
+    description: Multi-user device access and permissions
+  - name: Messages
+    description: System notifications and device logs
+  - name: Help & Support
+    description: FAQ and troubleshooting content
+  - name: App Configuration
+    description: App settings and version management
+  - name: Public Data
+    description: Public endpoints (no authentication required)
+
+paths:
+  /v1/user/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate with email and password to receive access token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: user@example.com
+                password:
+                  type: string
+                  format: password
+                  example: secure_password
+                keep:
+                  type: boolean
+                  description: Request persistent session
+                  default: true
+      responses:
+        '200':
+          description: Successful authentication
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          token:
+                            type: string
+                            description: Authentication token for subsequent requests
+                          userId:
+                            type: string
+                            description: User ID
+                          email:
+                            type: string
+                            format: email
+                          ttl:
+                            type: integer
+                            description: Token time-to-live in seconds
+                            default: 31536000
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /v1/devices:
+    get:
+      tags:
+        - Devices
+      summary: List all user devices
+      description: Get list of all devices associated with the authenticated user
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/DeviceSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/devices/{deviceId}:
+    get:
+      tags:
+        - Devices
+      summary: Get device details
+      description: Get detailed status and information for a specific device
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DeviceStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Devices
+      summary: Update device settings
+      description: Update device configuration such as name or settings
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deviceName:
+                  type: string
+                  description: User-assigned device name
+                mixRatio:
+                  type: integer
+                  description: Concentrate mixing ratio
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Devices
+      summary: Remove device
+      description: Delete a device from the user's account
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/devices/{deviceId}/start:
+    post:
+      tags:
+        - Device Control
+      summary: Start spray
+      description: |
+        Start device spray/misting operation.
+
+        **Important:**
+        - Empty payload `{}` works for default spray
+        - Duration is NOT supported in this endpoint
+        - For custom durations, use schedules
+        - Device may need to wake up from sleep mode
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  enum: [manual, schedule]
+                  description: Optional spray mode
+              example: {}
+      responses:
+        '200':
+          description: Spray started successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          code:
+                            type: integer
+                            example: 0
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/DeviceOffline'
+
+  /v1/devices/{deviceId}/stop:
+    post:
+      tags:
+        - Device Control
+      summary: Stop spray
+      description: Stop device spray/misting operation
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  enum: [manual, schedule]
+                  description: Optional stop mode
+              example: {}
+      responses:
+        '200':
+          description: Spray stopped successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          code:
+                            type: integer
+                            example: 0
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '503':
+          $ref: '#/components/responses/DeviceOffline'
+
+  /v1/devices/{deviceId}/schedules:
+    get:
+      tags:
+        - Schedules
+      summary: Get device schedules
+      description: Get all schedules configured for a device
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Schedule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags:
+        - Schedules
+      summary: Create schedule
+      description: Create a new spray schedule with custom duration
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleCreate'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/devices/{deviceId}/schedules/{scheduleId}:
+    get:
+      tags:
+        - Schedules
+      summary: Get schedule details
+      description: Get details of a specific schedule
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/ScheduleId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Schedule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Schedules
+      summary: Update schedule
+      description: Update an existing schedule
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/ScheduleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleUpdate'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags:
+        - Schedules
+      summary: Delete schedule
+      description: Delete a spray schedule
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/ScheduleId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/devices/{deviceId}/schedules/{scheduleId}/enable:
+    put:
+      tags:
+        - Schedules
+      summary: Enable schedule
+      description: Enable a specific schedule (uses PUT not POST)
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/ScheduleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              example: {}
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/devices/{deviceId}/schedules/{scheduleId}/disable:
+    put:
+      tags:
+        - Schedules
+      summary: Disable schedule
+      description: Disable a specific schedule (uses PUT not POST)
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/ScheduleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              example: {}
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/devices/{deviceId}/schedules/switch/open:
+    put:
+      tags:
+        - Schedules
+      summary: Enable all schedules
+      description: Enable all schedules for a device (uses PUT not POST)
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              example: {}
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/devices/{deviceId}/schedules/switch/close:
+    put:
+      tags:
+        - Schedules
+      summary: Disable all schedules
+      description: Disable all schedules for a device (uses PUT not POST)
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              example: {}
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/devices/{deviceId}/configs:
+    get:
+      tags:
+        - Devices
+      summary: Get device configuration
+      description: Get device configuration settings
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags:
+        - Devices
+      summary: Set device configuration
+      description: |
+        Update device configuration settings.
+
+        **Important Notes:**
+        - Only writable fields are accepted: deviceId, stopTemperature, stopRainy, stopSnow, userId, liquidName, timeZone, sprayingSeconds, id, stopWindstorm, liquidConcentration
+        - The `timeZone` field must be in IANA format (e.g., "America/Los_Angeles"), not POSIX format (e.g., "PST8PDT,M3.2.0,M11.1.0")
+        - Read-only fields will be rejected with an error
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Device configuration parameters
+              properties:
+                deviceId:
+                  type: string
+                  description: Device identifier
+                stopTemperature:
+                  type: number
+                  description: Temperature threshold to stop spraying
+                stopRainy:
+                  type: boolean
+                  description: Stop spraying when raining
+                stopSnow:
+                  type: boolean
+                  description: Stop spraying when snowing
+                stopWindstorm:
+                  type: boolean
+                  description: Stop spraying during windstorms
+                userId:
+                  type: string
+                  description: User identifier
+                liquidName:
+                  type: string
+                  description: Name of liquid concentrate
+                liquidConcentration:
+                  type: number
+                  description: Concentration of liquid
+                timeZone:
+                  type: string
+                  description: IANA timezone identifier (e.g., "America/Los_Angeles", "Europe/London"). POSIX format NOT supported.
+                  example: "America/Los_Angeles"
+                sprayingSeconds:
+                  type: integer
+                  description: Default spraying duration in seconds
+                id:
+                  type: string
+                  description: Configuration ID
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/devices/{deviceId}/logs:
+    get:
+      tags:
+        - Devices
+      summary: Get device logs
+      description: Get operation logs for a device
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                timestamp:
+                                  type: integer
+                                  description: Unix timestamp
+                                event:
+                                  type: string
+                                  description: Event type
+                                details:
+                                  type: string
+                                  description: Event details
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/devices/{deviceId}/otaCheck:
+    post:
+      tags:
+        - Devices
+      summary: Check for firmware updates
+      description: Check if firmware update is available for device (uses POST not GET)
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              example: {}
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          available:
+                            type: boolean
+                          version:
+                            type: string
+                          url:
+                            type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/devices/{deviceId}/otaUpdate:
+    post:
+      tags:
+        - Devices
+      summary: Trigger OTA firmware update
+      description: Initiate over-the-air firmware update for device
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              example: {}
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1/liquid:
+    get:
+      tags:
+        - Public Data
+      summary: Get liquid types
+      description: Get list of available liquid concentrate types (public endpoint, no auth required)
+      security: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            name:
+                              type: string
+                            description:
+                              type: string
+                            icon:
+                              type: string
+                              format: uri
+
+  /v1/devices/schedules:
+    get:
+      tags:
+        - Public Data
+      summary: Get recommended schedules
+      description: Get public recommended spray schedules (no auth required)
+      security: []
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          items:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/Schedule'
+
+  # Account Management Endpoints
+  /v1/user/signup:
+    post:
+      tags:
+        - Account Management
+      summary: User registration
+      description: Create new user account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+                nickname:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /v1/user/auth:
+    post:
+      tags:
+        - Account Management
+      summary: Google Sign-In
+      description: Authenticate with Google OAuth
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                googleToken:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/user/getVerifyCode:
+    post:
+      tags:
+        - Account Management
+      summary: Request verification code
+      description: Request email verification code for password reset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/user/checkVerifyCode:
+    post:
+      tags:
+        - Account Management
+      summary: Verify code
+      description: Verify email code for password reset
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - email
+                - code
+              properties:
+                email:
+                  type: string
+                  format: email
+                code:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/user/changeEmail:
+    post:
+      tags:
+        - Account Management
+      summary: Change email address
+      description: Update user email address
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - newEmail
+                - code
+              properties:
+                newEmail:
+                  type: string
+                  format: email
+                code:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/user/updatePassword:
+    post:
+      tags:
+        - Account Management
+      summary: Update password
+      description: Change user password
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - oldPassword
+                - newPassword
+              properties:
+                oldPassword:
+                  type: string
+                  format: password
+                newPassword:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/user/setPassword:
+    post:
+      tags:
+        - Account Management
+      summary: Set password
+      description: Set password for OAuth users
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                password:
+                  type: string
+                  format: password
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/user/changeNickname:
+    post:
+      tags:
+        - Account Management
+      summary: Update nickname
+      description: Change user display name
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - nickname
+              properties:
+                nickname:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/user/saveNotificationToken:
+    post:
+      tags:
+        - Account Management
+      summary: Update FCM token
+      description: Save Firebase Cloud Messaging push notification token
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+                platform:
+                  type: string
+                  enum: [android, ios]
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  # Device Registration
+  /v1/devices/{did}/register:
+    post:
+      tags:
+        - Devices
+      summary: Register new device
+      description: Register device to user account
+      parameters:
+        - name: did
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                deviceName:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  # Schedule Skip Operation
+  /v1/devices/{deviceId}/schedules/{scheduleId}/skip:
+    put:
+      tags:
+        - Schedules
+      summary: Skip schedule
+      description: Skip next occurrence of a schedule
+      parameters:
+        - $ref: '#/components/parameters/DeviceId'
+        - $ref: '#/components/parameters/ScheduleId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  # Device Sharing Endpoints
+  /v1/members/{deviceId}:
+    post:
+      tags:
+        - Device Sharing
+      summary: Invite user to device
+      description: Send device sharing invitation to another user
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [admin, user]
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/members/{deviceId}/list:
+    get:
+      tags:
+        - Device Sharing
+      summary: List device users
+      description: Get all users with access to device
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /v1/members/{id}:
+    get:
+      tags:
+        - Device Sharing
+      summary: Get device user details
+      description: Get specific device user information
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+    delete:
+      tags:
+        - Device Sharing
+      summary: Remove device user
+      description: Remove user's access to device
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/members/{id}/pass:
+    put:
+      tags:
+        - Device Sharing
+      summary: Accept invitation
+      description: Accept device sharing invitation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/members/{id}/refuse:
+    put:
+      tags:
+        - Device Sharing
+      summary: Reject invitation
+      description: Reject device sharing invitation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/members/{id}/pause:
+    put:
+      tags:
+        - Device Sharing
+      summary: Suspend user access
+      description: Temporarily suspend user's device access
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/members/{id}/enable:
+    put:
+      tags:
+        - Device Sharing
+      summary: Resume user access
+      description: Restore suspended user's device access
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/members/{id}/transfer:
+    put:
+      tags:
+        - Device Sharing
+      summary: Transfer ownership
+      description: Transfer device ownership to another user
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  # Messages & Notifications
+  /v1/users/{userId}/messages:
+    get:
+      tags:
+        - Messages
+      summary: Get all messages
+      description: Get all user messages (notices + logs)
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /v1/users/{userId}/messages/notice:
+    get:
+      tags:
+        - Messages
+      summary: Get notice messages
+      description: Get system notification messages
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /v1/users/{userId}/messages/log:
+    get:
+      tags:
+        - Messages
+      summary: Get log messages
+      description: Get device activity log messages
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /v1/users/{userId}/messages/{messageId}:
+    get:
+      tags:
+        - Messages
+      summary: Get message details
+      description: Get specific message content
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - name: messageId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /v1/users/{userId}/messages/notice/unread-count:
+    get:
+      tags:
+        - Messages
+      summary: Count unread notices
+      description: Get unread notice message count
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /v1/users/{userId}/messages/log/unread-count:
+    get:
+      tags:
+        - Messages
+      summary: Count unread logs
+      description: Get unread log message count
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /v1/users/{userId}/messages/notice/read-all:
+    put:
+      tags:
+        - Messages
+      summary: Mark all notices as read
+      description: Mark all notice messages as read
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/users/{userId}/messages/log/read-all:
+    put:
+      tags:
+        - Messages
+      summary: Mark all logs as read
+      description: Mark all log messages as read
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/users/{userId}/messages/batch-read:
+    put:
+      tags:
+        - Messages
+      summary: Batch mark as read
+      description: Mark multiple messages as read
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messageIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/users/{userId}/messages/notice/delete-all:
+    delete:
+      tags:
+        - Messages
+      summary: Delete all notices
+      description: Clear all notice messages
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/users/{userId}/messages/log/delete-all:
+    delete:
+      tags:
+        - Messages
+      summary: Delete all logs
+      description: Clear all log messages
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /v1/users/{userId}/messages/batch-delete:
+    delete:
+      tags:
+        - Messages
+      summary: Batch delete messages
+      description: Delete multiple messages
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messageIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  # Help & Support
+  /v1/faqs:
+    get:
+      tags:
+        - Help & Support
+      summary: Get FAQ list
+      description: Get frequently asked questions
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /v1/faqs/{id}:
+    get:
+      tags:
+        - Help & Support
+      summary: Get FAQ details
+      description: Get specific FAQ content
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  /v1/faqs/main/info:
+    get:
+      tags:
+        - Help & Support
+      summary: Get main help info
+      description: Get main help/guide information
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+  # App Configuration
+  /v1/version/upgrade:
+    post:
+      tags:
+        - App Configuration
+      summary: Check app version
+      description: Check if app update is available
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                version:
+                  type: string
+                platform:
+                  type: string
+                  enum: [android, ios]
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+
+components:
+  securitySchemes:
+    TokenAuth:
+      type: apiKey
+      in: header
+      name: token
+      description: Authentication token obtained from login endpoint
+
+  parameters:
+    DeviceId:
+      name: deviceId
+      in: path
+      required: true
+      description: Unique device identifier
+      schema:
+        type: string
+        example: "ABC123DEF456"
+
+    ScheduleId:
+      name: scheduleId
+      in: path
+      required: true
+      description: Schedule identifier
+      schema:
+        type: string
+        example: "schedule_001"
+
+    UserId:
+      name: userId
+      in: path
+      required: true
+      description: User identifier
+      schema:
+        type: string
+
+    Page:
+      name: page
+      in: query
+      description: Page number for pagination
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+
+    PageSize:
+      name: pageSize
+      in: query
+      description: Number of items per page
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+
+  schemas:
+    ApiResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Response code (0 = success)
+          example: 0
+        message:
+          type: string
+          description: Response message
+          example: "success"
+        data:
+          type: object
+          description: Response data (structure varies by endpoint)
+
+    DeviceSummary:
+      type: object
+      properties:
+        deviceId:
+          type: string
+          description: Unique device identifier
+        deviceName:
+          type: string
+          description: User-assigned device name
+        onlineStatus:
+          type: integer
+          description: Connection status (0=offline, 1=online)
+          enum: [0, 1]
+        runStatus:
+          type: integer
+          description: Current operation state
+          enum: [0, 1]
+        firmware:
+          type: string
+          description: Firmware version
+
+    DeviceStatus:
+      type: object
+      properties:
+        deviceId:
+          type: string
+          description: Unique device identifier
+        deviceName:
+          type: string
+          description: User-assigned device name
+        onlineStatus:
+          type: integer
+          description: Connection status (0=offline, 1=online)
+          enum: [0, 1]
+        runStatus:
+          type: integer
+          description: Current operation state (spray on/off)
+          enum: [0, 1]
+        rssi:
+          type: integer
+          description: WiFi signal strength
+        temperature:
+          type: number
+          format: double
+          description: Ambient temperature
+        humidity:
+          type: integer
+          description: Ambient humidity percentage
+        liquid_level:
+          type: integer
+          description: Liquid concentrate level
+        water_level:
+          type: integer
+          description: Water reservoir level
+        mixRatio:
+          type: integer
+          description: Concentrate mixing ratio
+        firmware:
+          type: string
+          description: Device firmware version
+        latestSprayingDuration:
+          type: integer
+          description: Duration of last spray in seconds
+        latestSprayingEnd:
+          type: integer
+          description: Unix timestamp of last spray end
+
+    Schedule:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Schedule identifier
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+          description: Hour (0-23)
+        minute:
+          type: integer
+          minimum: 0
+          maximum: 59
+          description: Minute (0-59)
+        duration:
+          type: integer
+          description: Spray duration in seconds
+        repeatSet:
+          type: string
+          description: Days to repeat (0=Sunday, 6=Saturday)
+          example: "0,1,2,3,4,5,6"
+        status:
+          type: integer
+          description: Schedule status (1=enabled, 0=disabled)
+          enum: [0, 1]
+
+    ScheduleCreate:
+      type: object
+      required:
+        - hour
+        - minute
+        - duration
+      properties:
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+          description: Hour (0-23)
+        minute:
+          type: integer
+          minimum: 0
+          maximum: 59
+          description: Minute (0-59)
+        duration:
+          type: integer
+          description: Spray duration in seconds
+        repeatSet:
+          type: string
+          description: Days to repeat (0=Sunday, 6=Saturday)
+          default: "0,1,2,3,4,5,6"
+          example: "1,2,3,4,5"
+        status:
+          type: integer
+          description: Initial status (1=enabled, 0=disabled)
+          default: 1
+          enum: [0, 1]
+
+    ScheduleUpdate:
+      type: object
+      properties:
+        hour:
+          type: integer
+          minimum: 0
+          maximum: 23
+          description: Hour (0-23)
+        minute:
+          type: integer
+          minimum: 0
+          maximum: 59
+          description: Minute (0-59)
+        duration:
+          type: integer
+          description: Spray duration in seconds
+        repeatSet:
+          type: string
+          description: Days to repeat
+        status:
+          type: integer
+          description: Schedule status (1=enabled, 0=disabled)
+          enum: [0, 1]
+
+    Error:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message
+        data:
+          type: object
+          description: Additional error details
+
+  responses:
+    Success:
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            code: 0
+            message: "success"
+            data: {}
+
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 400
+            message: "Bad request"
+
+    Unauthorized:
+      description: Unauthorized (invalid or missing token)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 401
+            message: "Unauthorized"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 404
+            message: "Not found"
+
+    RateLimited:
+      description: Rate limited (24-hour lockout)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 10000
+            message: "Rate limited"
+
+    DeviceOffline:
+      description: Device is offline
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: 10201
+            message: "Device offline"

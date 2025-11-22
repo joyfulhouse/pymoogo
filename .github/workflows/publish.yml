@@ -1,0 +1,52 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'testpypi'
+        type: choice
+        options:
+          - testpypi
+          - pypi
+
+jobs:
+  publish:
+    name: Publish to ${{ github.event.inputs.environment || 'pypi' }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'pypi' }}
+    permissions:
+      id-token: write  # Required for trusted publishing
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      - name: Build package
+        run: uv build
+
+      - name: Check package
+        run: uvx twine check dist/*
+
+      - name: Publish to TestPyPI
+        if: github.event.inputs.environment == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+      - name: Publish to PyPI
+        if: github.event_name == 'release' || github.event.inputs.environment == 'pypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
