@@ -18,12 +18,12 @@ class DeviceStatus:
     device_name: str
     online_status: int  # 0=offline, 1=online
     run_status: int  # 0=stopped, 1=running
-    rssi: int
-    temperature: float
-    humidity: int
-    liquid_level: int
-    water_level: int
-    mix_ratio: int
+    rssi: int  # WiFi signal strength in dBm
+    temperature: int  # Ambient temperature
+    humidity: int  # Ambient humidity percentage
+    liquid_level: int  # Liquid concentrate level (0-2 scale)
+    water_level: int  # Water reservoir level (0-2 scale)
+    liquid_concentration: int  # Liquid concentration value
     firmware: str
     latest_spraying_duration: int | None = None
     latest_spraying_end: int | None = None
@@ -37,11 +37,11 @@ class DeviceStatus:
             online_status=data.get("onlineStatus", 0),
             run_status=data.get("runStatus", 0),
             rssi=data.get("rssi", 0),
-            temperature=data.get("temperature", 0.0),
+            temperature=data.get("temperature", 0),
             humidity=data.get("humidity", 0),
             liquid_level=data.get("liquid_level", 0),
             water_level=data.get("water_level", 0),
-            mix_ratio=data.get("mixRatio", 0),
+            liquid_concentration=data.get("liquidConcentration", 0),
             firmware=data.get("firmware", ""),
             latest_spraying_duration=data.get("latestSprayingDuration"),
             latest_spraying_end=data.get("latestSprayingEnd"),

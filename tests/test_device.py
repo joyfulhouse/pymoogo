@@ -37,11 +37,11 @@ def device_status():
         online_status=1,
         run_status=1,
         rssi=-50,
-        temperature=25.5,
+        temperature=25,
         humidity=60,
         liquid_level=80,
         water_level=90,
-        mix_ratio=10,
+        liquid_concentration=10,
         firmware="1.2.3",
         latest_spraying_duration=120,
         latest_spraying_end=1234567890,
@@ -80,7 +80,7 @@ class TestMoogoDeviceProperties:
         assert device.humidity is None
         assert device.water_level is None
         assert device.liquid_level is None
-        assert device.mix_ratio is None
+        assert device.liquid_concentration is None
         assert device.firmware is None
         assert device.rssi is None
 
@@ -99,7 +99,7 @@ class TestMoogoDeviceStatusManagement:
         assert device.status == device_status
         assert device.is_online is True
         assert device.is_running is True
-        assert device.temperature == 25.5
+        assert device.temperature == 25
         assert device.humidity == 60
         assert device.status_age is not None
         assert device.status_age < 1.0
@@ -115,11 +115,11 @@ class TestMoogoDeviceStatusManagement:
             online_status=1,
             run_status=0,
             rssi=-60,
-            temperature=22.0,
+            temperature=22,
             humidity=50,
             liquid_level=70,
             water_level=80,
-            mix_ratio=10,
+            liquid_concentration=10,
             firmware="1.2.3",
         )
         mock_client.get_device_status = AsyncMock(return_value=status)
@@ -185,7 +185,9 @@ class TestMoogoDeviceControl:
         result = await device.start_spray()
 
         assert result is True
-        mock_client.start_spray.assert_called_once_with("test-device-123", mode=None)
+        mock_client.start_spray.assert_called_once_with(
+            "test-device-123", mode=None, timeout=10.0, poll_interval=1.0
+        )
         # Status should be invalidated
         assert device.status is None
 
@@ -197,7 +199,9 @@ class TestMoogoDeviceControl:
         result = await device.start_spray(mode="manual")
 
         assert result is True
-        mock_client.start_spray.assert_called_once_with("test-device-123", mode="manual")
+        mock_client.start_spray.assert_called_once_with(
+            "test-device-123", mode="manual", timeout=10.0, poll_interval=1.0
+        )
 
     @pytest.mark.asyncio
     async def test_stop_spray(self, device, mock_client):
@@ -207,7 +211,9 @@ class TestMoogoDeviceControl:
         result = await device.stop_spray()
 
         assert result is True
-        mock_client.stop_spray.assert_called_once_with("test-device-123")
+        mock_client.stop_spray.assert_called_once_with(
+            "test-device-123", timeout=10.0, poll_interval=1.0
+        )
         # Status should be invalidated
         assert device.status is None
 
@@ -449,7 +455,7 @@ class TestMoogoDeviceUtility:
         assert result["device_name"] == "Test Device"
         assert result["online_status"] == 1
         assert result["run_status"] == 1
-        assert result["temperature"] == 25.5
+        assert result["temperature"] == 25
         assert result["humidity"] == 60
 
     def test_repr(self, device):

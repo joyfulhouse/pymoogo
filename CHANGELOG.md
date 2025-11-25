@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2025-11-25
+
+### Changed
+- **BREAKING:** `start_spray()` and `stop_spray()` now poll for state confirmation before returning
+  - Methods wait up to 10 seconds (configurable) for device to confirm state change
+  - New parameters: `timeout` (default: 10.0s), `poll_interval` (default: 1.0s)
+  - Raises `MoogoDeviceError` if device doesn't confirm within timeout
+  - Fixes issue where spray appeared to toggle off immediately after starting
+- **BREAKING:** `DeviceStatus.mix_ratio` renamed to `DeviceStatus.liquid_concentration`
+  - Matches actual API field name `liquidConcentration`
+- **BREAKING:** `DeviceStatus.temperature` type changed from `float` to `int`
+  - Matches actual API response type
+- **BREAKING:** `MoogoDevice.mix_ratio` property renamed to `MoogoDevice.liquid_concentration`
+
+### Fixed
+- Spray state confirmation: API returns success immediately but device takes ~3-5 seconds to reflect state change
+- Field mapping: `liquidConcentration` API field now correctly mapped (was unmapped)
+- Field mapping: Removed non-existent `mixRatio` API field reference
+
 ## [1.2.0] - 2024-11-21
 
 ### Added

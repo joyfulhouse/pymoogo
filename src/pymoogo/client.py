@@ -25,6 +25,11 @@ _LOGGER = logging.getLogger(__name__)
 # Type variable for retry decorator
 T = TypeVar("T")
 
+# State confirmation defaults
+DEFAULT_STATE_TIMEOUT = 10.0  # seconds to wait for state confirmation
+DEFAULT_POLL_INTERVAL = 1.0  # seconds between status polls
+MIN_POLL_INTERVAL = 0.5  # minimum poll interval to avoid rate limits
+
 
 def retry_with_backoff(
     max_attempts: int = 3,
@@ -359,25 +364,37 @@ class MoogoClient:
             _LOGGER.debug(f"Invalidated status cache for device {device_id}")
 
     @retry_with_backoff(max_attempts=5, initial_delay=2.0, backoff_factor=2.0)
-    async def start_spray(self, device_id: str, mode: str | None = None) -> bool:
+    async def start_spray(
+        self,
+        device_id: str,
+        mode: str | None = None,
+        timeout: float = DEFAULT_STATE_TIMEOUT,
+        poll_interval: float = DEFAULT_POLL_INTERVAL,
+    ) -> bool:
         """
-        Start device spray/misting with retry logic and circuit breaker.
+        Start device spray/misting and wait for confirmation.
 
-        This method is optimized to minimize API calls:
-        - No pre-flight status check (saves 1 API call per attempt)
+        The Moogo API acknowledges commands immediately but the device
+        status takes ~3-5 seconds to reflect the actual state. This method
+        sends the start command and polls until the device confirms running.
+
+        Features:
         - Circuit breaker prevents repeated calls to persistently offline devices
         - Retry with backoff handles transient failures
+        - Polls until device confirms running state
 
         Args:
             device_id: Device ID
             mode: Optional spray mode ("manual", "schedule")
+            timeout: Maximum time to wait for confirmation (default: 10s)
+            poll_interval: Time between status polls (default: 1s)
 
         Returns:
-            True if successful
+            True if spray started and confirmed running
 
         Raises:
             MoogoAuthError: If not authenticated
-            MoogoDeviceError: If device is offline or operation fails
+            MoogoDeviceError: If device is offline or doesn't confirm running
         """
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
@@ -389,19 +406,14 @@ class MoogoClient:
                 f"Device appears persistently offline. "
                 f"Retry after {self._circuit_breaker_timeout.total_seconds()}s cooldown."
             )
-
-        # NOTE: Pre-flight status check removed to minimize API calls.
-        # The API will return appropriate error codes if device is offline.
 
         payload = {"mode": mode} if mode else {}
 
         try:
             await self._api.request("POST", f"v1/devices/{device_id}/start", json=payload)
             self._record_device_success(device_id)
-            # Invalidate status cache since device state changed
             self.invalidate_device_status_cache(device_id)
-            _LOGGER.info(f"Started spray for device {device_id}")
-            return True
+            _LOGGER.info(f"Start command sent for device {device_id}")
         except MoogoDeviceError as e:
             self._record_device_failure(device_id)
             raise MoogoDeviceError(f"Failed to start spray: {e}") from e
@@ -409,25 +421,52 @@ class MoogoClient:
             self._record_device_failure(device_id)
             raise MoogoDeviceError(f"Failed to start spray: {e}") from e
 
-    @retry_with_backoff(max_attempts=5, initial_delay=2.0, backoff_factor=2.0)
-    async def stop_spray(self, device_id: str) -> bool:
-        """
-        Stop device spray/misting with retry logic and circuit breaker.
+        # Wait for device to confirm running state
+        confirmed = await self._wait_for_running(
+            device_id, timeout=timeout, poll_interval=poll_interval
+        )
 
-        This method is optimized to minimize API calls:
-        - No pre-flight status check (saves 1 API call per attempt)
+        if not confirmed:
+            status = await self.get_device_status(device_id, force_refresh=True)
+            if not status.is_online:
+                raise MoogoDeviceError(f"Device {device_id} went offline after start command")
+            raise MoogoDeviceError(
+                f"Device {device_id} did not confirm running state within {timeout}s"
+            )
+
+        _LOGGER.info(f"Device {device_id} confirmed running")
+        return True
+
+    @retry_with_backoff(max_attempts=5, initial_delay=2.0, backoff_factor=2.0)
+    async def stop_spray(
+        self,
+        device_id: str,
+        timeout: float = DEFAULT_STATE_TIMEOUT,
+        poll_interval: float = DEFAULT_POLL_INTERVAL,
+    ) -> bool:
+        """
+        Stop device spray/misting and wait for confirmation.
+
+        The Moogo API acknowledges commands immediately but the device
+        status takes ~3-5 seconds to reflect the actual state. This method
+        sends the stop command and polls until the device confirms stopped.
+
+        Features:
         - Circuit breaker prevents repeated calls to persistently offline devices
         - Retry with backoff handles transient failures
+        - Polls until device confirms stopped state
 
         Args:
             device_id: Device ID
+            timeout: Maximum time to wait for confirmation (default: 10s)
+            poll_interval: Time between status polls (default: 1s)
 
         Returns:
-            True if successful
+            True if spray stopped and confirmed
 
         Raises:
             MoogoAuthError: If not authenticated
-            MoogoDeviceError: If device is offline or operation fails
+            MoogoDeviceError: If device is offline or doesn't confirm stopped
         """
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
@@ -440,22 +479,87 @@ class MoogoClient:
                 f"Retry after {self._circuit_breaker_timeout.total_seconds()}s cooldown."
             )
 
-        # NOTE: Pre-flight status check removed to minimize API calls.
-        # The API will return appropriate error codes if device is offline.
-
         try:
             await self._api.request("POST", f"v1/devices/{device_id}/stop", json={})
             self._record_device_success(device_id)
-            # Invalidate status cache since device state changed
             self.invalidate_device_status_cache(device_id)
-            _LOGGER.info(f"Stopped spray for device {device_id}")
-            return True
+            _LOGGER.info(f"Stop command sent for device {device_id}")
         except MoogoDeviceError as e:
             self._record_device_failure(device_id)
             raise MoogoDeviceError(f"Failed to stop spray: {e}") from e
         except Exception as e:
             self._record_device_failure(device_id)
             raise MoogoDeviceError(f"Failed to stop spray: {e}") from e
+
+        # Wait for device to confirm stopped state
+        confirmed = await self._wait_for_stopped(
+            device_id, timeout=timeout, poll_interval=poll_interval
+        )
+
+        if not confirmed:
+            status = await self.get_device_status(device_id, force_refresh=True)
+            if not status.is_online:
+                raise MoogoDeviceError(f"Device {device_id} went offline after stop command")
+            raise MoogoDeviceError(
+                f"Device {device_id} did not confirm stopped state within {timeout}s"
+            )
+
+        _LOGGER.info(f"Device {device_id} confirmed stopped")
+        return True
+
+    async def _wait_for_running(
+        self,
+        device_id: str,
+        timeout: float = DEFAULT_STATE_TIMEOUT,
+        poll_interval: float = DEFAULT_POLL_INTERVAL,
+    ) -> bool:
+        """Wait for device to report running state (internal helper)."""
+        poll_interval = max(poll_interval, MIN_POLL_INTERVAL)
+        start_time = datetime.now()
+        elapsed = 0.0
+
+        while elapsed < timeout:
+            status = await self.get_device_status(device_id, force_refresh=True)
+
+            if not status.is_online:
+                _LOGGER.debug(f"Device {device_id} reported offline during wait, continuing...")
+
+            if status.is_running:
+                _LOGGER.debug(f"Device {device_id} confirmed running after {elapsed:.1f}s")
+                return True
+
+            await asyncio.sleep(poll_interval)
+            elapsed = (datetime.now() - start_time).total_seconds()
+
+        _LOGGER.warning(f"Timeout waiting for device {device_id} to start running after {timeout}s")
+        return False
+
+    async def _wait_for_stopped(
+        self,
+        device_id: str,
+        timeout: float = DEFAULT_STATE_TIMEOUT,
+        poll_interval: float = DEFAULT_POLL_INTERVAL,
+    ) -> bool:
+        """Wait for device to report stopped state (internal helper)."""
+        poll_interval = max(poll_interval, MIN_POLL_INTERVAL)
+        start_time = datetime.now()
+        elapsed = 0.0
+
+        while elapsed < timeout:
+            status = await self.get_device_status(device_id, force_refresh=True)
+
+            if not status.is_online:
+                _LOGGER.debug(f"Device {device_id} reported offline during wait, continuing...")
+
+            if not status.is_running:
+                _LOGGER.debug(f"Device {device_id} confirmed stopped after {elapsed:.1f}s")
+                return True
+
+            await asyncio.sleep(poll_interval)
+            elapsed = (datetime.now() - start_time).total_seconds()
+
+        _LOGGER.warning(f"Timeout waiting for device {device_id} to stop after {timeout}s")
+        return False
 
     # === Schedule Management ===
 

@@ -131,29 +131,29 @@ class MoogoDevice:
         return self._status.is_running if self._status else False
 
     @property
-    def temperature(self) -> float | None:
+    def temperature(self) -> int | None:
         """Get ambient temperature (None if status not available)."""
         return self._status.temperature if self._status else None
 
     @property
     def humidity(self) -> int | None:
-        """Get ambient humidity (None if status not available)."""
+        """Get ambient humidity percentage (None if status not available)."""
         return self._status.humidity if self._status else None
 
     @property
     def water_level(self) -> int | None:
-        """Get water reservoir level (None if status not available)."""
+        """Get water reservoir level 0-2 (None if status not available)."""
         return self._status.water_level if self._status else None
 
     @property
     def liquid_level(self) -> int | None:
-        """Get liquid concentrate level (None if status not available)."""
+        """Get liquid concentrate level 0-2 (None if status not available)."""
         return self._status.liquid_level if self._status else None
 
     @property
-    def mix_ratio(self) -> int | None:
-        """Get concentrate mixing ratio (None if status not available)."""
-        return self._status.mix_ratio if self._status else None
+    def liquid_concentration(self) -> int | None:
+        """Get liquid concentration value (None if status not available)."""
+        return self._status.liquid_concentration if self._status else None
 
     @property
     def firmware(self) -> str | None:
@@ -212,45 +212,71 @@ class MoogoDevice:
 
     # === Device Control ===
 
-    async def start_spray(self, mode: str | None = None) -> bool:
+    async def start_spray(
+        self,
+        mode: str | None = None,
+        timeout: float = 10.0,
+        poll_interval: float = 1.0,
+    ) -> bool:
         """
-        Start device spray/misting.
+        Start device spray/misting and wait for confirmation.
 
-        This method uses the client's retry and circuit breaker logic.
+        The Moogo API acknowledges commands immediately but the device
+        status takes ~3-5 seconds to reflect the actual state. This method
+        sends the start command and polls until the device confirms running.
 
         Args:
             mode: Optional spray mode ("manual", "schedule")
+            timeout: Maximum time to wait for confirmation (default: 10s)
+            poll_interval: Time between status polls (default: 1s)
 
         Returns:
-            True if successful
+            True if spray started and confirmed running
 
         Raises:
             MoogoAuthError: If not authenticated
-            MoogoDeviceError: If device is offline or operation fails
+            MoogoDeviceError: If device is offline or doesn't confirm running
         """
-        result: bool = await self._client.start_spray(self._device_id, mode=mode)
+        result: bool = await self._client.start_spray(
+            self._device_id,
+            mode=mode,
+            timeout=timeout,
+            poll_interval=poll_interval,
+        )
         if result:
-            # Invalidate status cache so next access fetches fresh state
             self._status = None
             self._status_updated = None
         return result
 
-    async def stop_spray(self) -> bool:
+    async def stop_spray(
+        self,
+        timeout: float = 10.0,
+        poll_interval: float = 1.0,
+    ) -> bool:
         """
-        Stop device spray/misting.
+        Stop device spray/misting and wait for confirmation.
 
-        This method uses the client's retry and circuit breaker logic.
+        The Moogo API acknowledges commands immediately but the device
+        status takes ~3-5 seconds to reflect the actual state. This method
+        sends the stop command and polls until the device confirms stopped.
+
+        Args:
+            timeout: Maximum time to wait for confirmation (default: 10s)
+            poll_interval: Time between status polls (default: 1s)
 
         Returns:
-            True if successful
+            True if spray stopped and confirmed
 
         Raises:
             MoogoAuthError: If not authenticated
-            MoogoDeviceError: If device is offline or operation fails
+            MoogoDeviceError: If device is offline or doesn't confirm stopped
         """
-        result: bool = await self._client.stop_spray(self._device_id)
+        result: bool = await self._client.stop_spray(
+            self._device_id,
+            timeout=timeout,
+            poll_interval=poll_interval,
+        )
         if result:
-            # Invalidate status cache so next access fetches fresh state
             self._status = None
             self._status_updated = None
         return result
@@ -510,7 +536,7 @@ class MoogoDevice:
                     "humidity": self._status.humidity,
                     "liquid_level": self._status.liquid_level,
                     "water_level": self._status.water_level,
-                    "mix_ratio": self._status.mix_ratio,
+                    "liquid_concentration": self._status.liquid_concentration,
                     "firmware": self._status.firmware,
                     "latest_spraying_duration": self._status.latest_spraying_duration,
                     "latest_spraying_end": self._status.latest_spraying_end,

@@ -187,11 +187,11 @@ class TestClientDeviceManagement:
             online_status=1,
             run_status=0,
             rssi=-50,
-            temperature=25.0,
+            temperature=25,
             humidity=60,
             liquid_level=80,
             water_level=90,
-            mix_ratio=10,
+            liquid_concentration=10,
             firmware="1.0.0",
         )
         client.get_device_status = AsyncMock(return_value=device_status)

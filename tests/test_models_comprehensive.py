@@ -14,11 +14,11 @@ class TestDeviceStatusModel:
             "onlineStatus": 1,
             "runStatus": 1,
             "rssi": -45,
-            "temperature": 22.5,
+            "temperature": 22,
             "humidity": 55,
             "liquid_level": 80,
             "water_level": 90,
-            "mixRatio": 100,
+            "liquidConcentration": 100,
             "firmware": "1.2.3",
             "latestSprayingDuration": 300,
             "latestSprayingEnd": 1234567890,
@@ -31,11 +31,11 @@ class TestDeviceStatusModel:
         assert status.online_status == 1
         assert status.run_status == 1
         assert status.rssi == -45
-        assert status.temperature == 22.5
+        assert status.temperature == 22
         assert status.humidity == 55
         assert status.liquid_level == 80
         assert status.water_level == 90
-        assert status.mix_ratio == 100
+        assert status.liquid_concentration == 100
         assert status.firmware == "1.2.3"
         assert status.latest_spraying_duration == 300
         assert status.latest_spraying_end == 1234567890
@@ -54,7 +54,7 @@ class TestDeviceStatusModel:
         assert status.online_status == 0
         assert status.run_status == 0
         assert status.rssi == 0
-        assert status.temperature == 0.0
+        assert status.temperature == 0
         assert status.humidity == 0
         assert status.latest_spraying_duration is None
         assert status.latest_spraying_end is None
@@ -67,11 +67,11 @@ class TestDeviceStatusModel:
             online_status=1,
             run_status=0,
             rssi=-50,
-            temperature=20.0,
+            temperature=20,
             humidity=50,
             liquid_level=100,
             water_level=100,
-            mix_ratio=100,
+            liquid_concentration=100,
             firmware="1.0.0",
         )
         assert online_status.is_online is True
@@ -82,11 +82,11 @@ class TestDeviceStatusModel:
             online_status=0,
             run_status=0,
             rssi=-50,
-            temperature=20.0,
+            temperature=20,
             humidity=50,
             liquid_level=100,
             water_level=100,
-            mix_ratio=100,
+            liquid_concentration=100,
             firmware="1.0.0",
         )
         assert offline_status.is_online is False
@@ -99,11 +99,11 @@ class TestDeviceStatusModel:
             online_status=1,
             run_status=1,
             rssi=-50,
-            temperature=20.0,
+            temperature=20,
             humidity=50,
             liquid_level=100,
             water_level=100,
-            mix_ratio=100,
+            liquid_concentration=100,
             firmware="1.0.0",
         )
         assert running_status.is_running is True
@@ -114,11 +114,11 @@ class TestDeviceStatusModel:
             online_status=1,
             run_status=0,
             rssi=-50,
-            temperature=20.0,
+            temperature=20,
             humidity=50,
             liquid_level=100,
             water_level=100,
-            mix_ratio=100,
+            liquid_concentration=100,
             firmware="1.0.0",
         )
         assert stopped_status.is_running is False
@@ -131,11 +131,11 @@ class TestDeviceStatusModel:
             online_status=1,
             run_status=0,
             rssi=-50,
-            temperature=20.0,
+            temperature=20,
             humidity=50,
             liquid_level=100,
             water_level=100,
-            mix_ratio=100,
+            liquid_concentration=100,
             firmware="1.0.0",
         )
 
@@ -145,11 +145,11 @@ class TestDeviceStatusModel:
             online_status=1,
             run_status=0,
             rssi=-50,
-            temperature=20.0,
+            temperature=20,
             humidity=50,
             liquid_level=100,
             water_level=100,
-            mix_ratio=100,
+            liquid_concentration=100,
             firmware="1.0.0",
         )
 
@@ -159,11 +159,11 @@ class TestDeviceStatusModel:
             online_status=0,
             run_status=0,
             rssi=-60,
-            temperature=25.0,
+            temperature=25,
             humidity=60,
             liquid_level=50,
             water_level=50,
-            mix_ratio=50,
+            liquid_concentration=50,
             firmware="2.0.0",
         )
 
