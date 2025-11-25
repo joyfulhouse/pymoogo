@@ -160,6 +160,17 @@ class MoogoClient:
         self._devices_cache_time: datetime | None = None
         self._devices_cache_ttl = timedelta(minutes=5)
 
+        # Device status cache (per-device)
+        self._device_status_cache: dict[str, tuple[DeviceStatus, datetime]] = {}
+        self._device_status_cache_ttl = timedelta(seconds=30)
+
+        # Public data cache (no auth required)
+        self._liquid_types_cache: list[dict[str, Any]] | None = None
+        self._liquid_types_cache_time: datetime | None = None
+        self._recommended_schedules_cache: list[dict[str, Any]] | None = None
+        self._recommended_schedules_cache_time: datetime | None = None
+        self._public_cache_ttl = timedelta(hours=1)  # Public data changes rarely
+
         # Circuit breaker for offline devices
         self._device_circuit_breakers: dict[str, dict[str, Any]] = {}
         self._circuit_breaker_threshold = 5
@@ -301,12 +312,16 @@ class MoogoClient:
 
     # === Low-level Device Operations (used by MoogoDevice) ===
 
-    async def get_device_status(self, device_id: str) -> DeviceStatus:
+    async def get_device_status(self, device_id: str, force_refresh: bool = False) -> DeviceStatus:
         """
-        Get detailed device status.
+        Get detailed device status with optional caching.
+
+        Uses a 30-second cache by default to reduce API calls during
+        rapid status checks (e.g., Home Assistant polling).
 
         Args:
             device_id: Device ID
+            force_refresh: Force refresh ignoring cache
 
         Returns:
             DeviceStatus object
@@ -314,13 +329,44 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
+        # Check cache
+        now = datetime.now()
+        if not force_refresh and device_id in self._device_status_cache:
+            cached_status, cached_time = self._device_status_cache[device_id]
+            if now - cached_time < self._device_status_cache_ttl:
+                _LOGGER.debug(f"Using cached status for device {device_id}")
+                return cached_status
+
         response = await self._api.request("GET", f"v1/devices/{device_id}")
-        return DeviceStatus.from_dict(response.get("data", {}))
+        status = DeviceStatus.from_dict(response.get("data", {}))
+
+        # Update cache
+        self._device_status_cache[device_id] = (status, now)
+        return status
+
+    def invalidate_device_status_cache(self, device_id: str | None = None) -> None:
+        """
+        Invalidate device status cache.
+
+        Args:
+            device_id: Specific device ID to invalidate, or None for all devices
+        """
+        if device_id is None:
+            self._device_status_cache.clear()
+            _LOGGER.debug("Invalidated all device status caches")
+        elif device_id in self._device_status_cache:
+            del self._device_status_cache[device_id]
+            _LOGGER.debug(f"Invalidated status cache for device {device_id}")
 
     @retry_with_backoff(max_attempts=5, initial_delay=2.0, backoff_factor=2.0)
     async def start_spray(self, device_id: str, mode: str | None = None) -> bool:
         """
         Start device spray/misting with retry logic and circuit breaker.
+
+        This method is optimized to minimize API calls:
+        - No pre-flight status check (saves 1 API call per attempt)
+        - Circuit breaker prevents repeated calls to persistently offline devices
+        - Retry with backoff handles transient failures
 
         Args:
             device_id: Device ID
@@ -336,7 +382,7 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        # Check circuit breaker
+        # Check circuit breaker (no API call - uses local state)
         if self._is_circuit_open(device_id):
             raise MoogoDeviceError(
                 f"Device {device_id} circuit breaker is open. "
@@ -344,22 +390,16 @@ class MoogoClient:
                 f"Retry after {self._circuit_breaker_timeout.total_seconds()}s cooldown."
             )
 
-        # Pre-flight check
-        try:
-            status = await self.get_device_status(device_id)
-            if not status.is_online:
-                _LOGGER.warning(
-                    f"Device {device_id} reports offline status. "
-                    "Attempting start anyway (device may be waking up)..."
-                )
-        except Exception as e:
-            _LOGGER.warning(f"Could not check device status before start: {e}")
+        # NOTE: Pre-flight status check removed to minimize API calls.
+        # The API will return appropriate error codes if device is offline.
 
         payload = {"mode": mode} if mode else {}
 
         try:
             await self._api.request("POST", f"v1/devices/{device_id}/start", json=payload)
             self._record_device_success(device_id)
+            # Invalidate status cache since device state changed
+            self.invalidate_device_status_cache(device_id)
             _LOGGER.info(f"Started spray for device {device_id}")
             return True
         except MoogoDeviceError as e:
@@ -374,6 +414,11 @@ class MoogoClient:
         """
         Stop device spray/misting with retry logic and circuit breaker.
 
+        This method is optimized to minimize API calls:
+        - No pre-flight status check (saves 1 API call per attempt)
+        - Circuit breaker prevents repeated calls to persistently offline devices
+        - Retry with backoff handles transient failures
+
         Args:
             device_id: Device ID
 
@@ -387,7 +432,7 @@ class MoogoClient:
         if not self.is_authenticated:
             raise MoogoAuthError("Authentication required")
 
-        # Check circuit breaker
+        # Check circuit breaker (no API call - uses local state)
         if self._is_circuit_open(device_id):
             raise MoogoDeviceError(
                 f"Device {device_id} circuit breaker is open. "
@@ -395,20 +440,14 @@ class MoogoClient:
                 f"Retry after {self._circuit_breaker_timeout.total_seconds()}s cooldown."
             )
 
-        # Pre-flight check
-        try:
-            status = await self.get_device_status(device_id)
-            if not status.is_online:
-                _LOGGER.warning(
-                    f"Device {device_id} reports offline status. "
-                    "Attempting stop anyway (device may be waking up)..."
-                )
-        except Exception as e:
-            _LOGGER.warning(f"Could not check device status before stop: {e}")
+        # NOTE: Pre-flight status check removed to minimize API calls.
+        # The API will return appropriate error codes if device is offline.
 
         try:
             await self._api.request("POST", f"v1/devices/{device_id}/stop", json={})
             self._record_device_success(device_id)
+            # Invalidate status cache since device state changed
+            self.invalidate_device_status_cache(device_id)
             _LOGGER.info(f"Stopped spray for device {device_id}")
             return True
         except MoogoDeviceError as e:
@@ -685,18 +724,68 @@ class MoogoClient:
 
     # === Public Data ===
 
-    async def get_liquid_types(self) -> list[dict[str, Any]]:
-        """Get available liquid concentrate types (public endpoint)."""
+    async def get_liquid_types(self, force_refresh: bool = False) -> list[dict[str, Any]]:
+        """
+        Get available liquid concentrate types (public endpoint).
+
+        Results are cached for 1 hour since this data changes infrequently.
+
+        Args:
+            force_refresh: Force refresh ignoring cache
+
+        Returns:
+            List of liquid type dictionaries
+        """
+        now = datetime.now()
+        if (
+            not force_refresh
+            and self._liquid_types_cache is not None
+            and self._liquid_types_cache_time is not None
+            and now - self._liquid_types_cache_time < self._public_cache_ttl
+        ):
+            _LOGGER.debug("Using cached liquid types")
+            return self._liquid_types_cache
+
         response = await self._api.request("GET", "v1/liquid", authenticated=False)
         data = response.get("data", [])
-        return data if isinstance(data, list) else []
+        result = data if isinstance(data, list) else []
 
-    async def get_recommended_schedules(self) -> list[dict[str, Any]]:
-        """Get recommended spray schedules (public endpoint)."""
+        # Update cache
+        self._liquid_types_cache = result
+        self._liquid_types_cache_time = now
+        return result
+
+    async def get_recommended_schedules(self, force_refresh: bool = False) -> list[dict[str, Any]]:
+        """
+        Get recommended spray schedules (public endpoint).
+
+        Results are cached for 1 hour since this data changes infrequently.
+
+        Args:
+            force_refresh: Force refresh ignoring cache
+
+        Returns:
+            List of recommended schedule dictionaries
+        """
+        now = datetime.now()
+        if (
+            not force_refresh
+            and self._recommended_schedules_cache is not None
+            and self._recommended_schedules_cache_time is not None
+            and now - self._recommended_schedules_cache_time < self._public_cache_ttl
+        ):
+            _LOGGER.debug("Using cached recommended schedules")
+            return self._recommended_schedules_cache
+
         response = await self._api.request("GET", "v1/devices/schedules", authenticated=False)
         data = response.get("data", {})
         items = data.get("items", []) if isinstance(data, dict) else []
-        return items if isinstance(items, list) else []
+        result = items if isinstance(items, list) else []
+
+        # Update cache
+        self._recommended_schedules_cache = result
+        self._recommended_schedules_cache_time = now
+        return result
 
     # === Circuit Breaker ===
 

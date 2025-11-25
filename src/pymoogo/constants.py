@@ -63,6 +63,12 @@ DEFAULT_DEVICES_CACHE_TTL_MINUTES: Final[int] = 5
 DEFAULT_STATUS_MAX_AGE_SECONDS: Final[float] = 60.0
 """Default maximum age for cached device status in seconds."""
 
+DEFAULT_DEVICE_STATUS_CACHE_TTL_SECONDS: Final[int] = 30
+"""Time-to-live for device status cache in seconds."""
+
+DEFAULT_PUBLIC_DATA_CACHE_TTL_MINUTES: Final[int] = 60
+"""Time-to-live for public data cache (liquid types, schedules) in minutes."""
+
 # ==============================================
 # Pagination Defaults
 # ==============================================
@@ -95,6 +101,19 @@ DEFAULT_AUTH_KEEP_ALIVE: Final[bool] = True
 
 DEFAULT_TOKEN_TTL_SECONDS: Final[int] = 31536000
 """Default token time-to-live in seconds (1 year = 365 * 24 * 60 * 60)."""
+
+# ==============================================
+# Reauthentication Rate Limiting
+# ==============================================
+
+DEFAULT_MAX_REAUTH_ATTEMPTS: Final[int] = 3
+"""Maximum reauthentication attempts before lockout."""
+
+DEFAULT_REAUTH_COOLDOWN_SECONDS: Final[int] = 300
+"""Cooldown period in seconds after max reauth attempts (5 minutes)."""
+
+DEFAULT_TOKEN_REFRESH_THRESHOLD_SECONDS: Final[int] = 3600
+"""Refresh token proactively when this many seconds remain before expiry (1 hour)."""
 
 # ==============================================
 # API Configuration
@@ -144,6 +163,8 @@ __all__ = [
     # Cache
     "DEFAULT_DEVICES_CACHE_TTL_MINUTES",
     "DEFAULT_STATUS_MAX_AGE_SECONDS",
+    "DEFAULT_DEVICE_STATUS_CACHE_TTL_SECONDS",
+    "DEFAULT_PUBLIC_DATA_CACHE_TTL_MINUTES",
     # Pagination
     "DEFAULT_PAGE_NUMBER",
     "DEFAULT_PAGE_SIZE",
@@ -154,6 +175,10 @@ __all__ = [
     # Authentication
     "DEFAULT_AUTH_KEEP_ALIVE",
     "DEFAULT_TOKEN_TTL_SECONDS",
+    # Reauthentication rate limiting
+    "DEFAULT_MAX_REAUTH_ATTEMPTS",
+    "DEFAULT_REAUTH_COOLDOWN_SECONDS",
+    "DEFAULT_TOKEN_REFRESH_THRESHOLD_SECONDS",
     # API
     "DEFAULT_API_TIMEOUT_SECONDS",
     # Validation

@@ -205,58 +205,43 @@ class TestCircuitBreakerIntegration:
             mock_circuit.assert_called_with("device_123")
 
     @pytest.mark.asyncio
-    async def test_start_spray_device_offline_warning(self, client_with_mocked_api):
-        """Test start_spray logs warning when device reports offline."""
-        from pymoogo.models import DeviceStatus
+    async def test_start_spray_no_preflight_check(self, client_with_mocked_api):
+        """Test start_spray does NOT make pre-flight status check (API optimization).
 
-        offline_status = DeviceStatus(
-            device_id="device_123",
-            device_name="Test Device",
-            online_status=0,  # Offline
-            run_status=0,
-            rssi=-50,
-            temperature=20.0,
-            humidity=50,
-            liquid_level=100,
-            water_level=100,
-            mix_ratio=100,
-            firmware="1.0.0",
-        )
-
+        Pre-flight status checks were removed to minimize API calls.
+        The API will return appropriate error codes if device is offline.
+        """
         mock_response = {"code": 0, "message": "success"}
 
         with (
             patch.object(client_with_mocked_api, "_is_circuit_open", return_value=False),
-            patch.object(
-                client_with_mocked_api, "get_device_status", return_value=offline_status
-            ) as mock_status,
+            patch.object(client_with_mocked_api, "get_device_status") as mock_status,
         ):
             client_with_mocked_api._api.request = AsyncMock(return_value=mock_response)
 
             success = await client_with_mocked_api.start_spray("device_123")
 
             assert success is True
-            mock_status.assert_called_once()
+            # Pre-flight check should NOT be called (API optimization)
+            mock_status.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_start_spray_status_check_exception(self, client_with_mocked_api):
-        """Test start_spray handles status check exceptions gracefully."""
+    async def test_start_spray_directly_calls_api(self, client_with_mocked_api):
+        """Test start_spray calls API directly without pre-flight check.
+
+        This verifies the optimization that removes the extra status check,
+        reducing API calls from 2 to 1 per spray operation.
+        """
         mock_response = {"code": 0, "message": "success"}
 
-        with (
-            patch.object(client_with_mocked_api, "_is_circuit_open", return_value=False),
-            patch.object(
-                client_with_mocked_api,
-                "get_device_status",
-                side_effect=Exception("Network error"),
-            ) as mock_status,
-        ):
+        with patch.object(client_with_mocked_api, "_is_circuit_open", return_value=False):
             client_with_mocked_api._api.request = AsyncMock(return_value=mock_response)
 
             success = await client_with_mocked_api.start_spray("device_123")
 
-            assert success is True  # Should continue despite status check failure
-            mock_status.assert_called_once()
+            assert success is True
+            # Verify only one API call was made (no pre-flight check)
+            client_with_mocked_api._api.request.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_start_spray_records_success(self, client_with_mocked_api):
@@ -265,7 +250,6 @@ class TestCircuitBreakerIntegration:
 
         with (
             patch.object(client_with_mocked_api, "_is_circuit_open", return_value=False),
-            patch.object(client_with_mocked_api, "get_device_status", side_effect=Exception()),
             patch.object(client_with_mocked_api, "_record_device_success") as mock_record,
         ):
             client_with_mocked_api._api.request = AsyncMock(return_value=mock_response)
@@ -281,7 +265,6 @@ class TestCircuitBreakerIntegration:
 
         with (
             patch.object(client_with_mocked_api, "_is_circuit_open", return_value=False),
-            patch.object(client_with_mocked_api, "get_device_status", side_effect=Exception()),
             patch.object(client_with_mocked_api, "_record_device_failure") as mock_record,
         ):
             client_with_mocked_api._api.request = AsyncMock(
@@ -300,7 +283,6 @@ class TestCircuitBreakerIntegration:
         """Test start_spray records device failure on generic Exception."""
         with (
             patch.object(client_with_mocked_api, "_is_circuit_open", return_value=False),
-            patch.object(client_with_mocked_api, "get_device_status", side_effect=Exception()),
             patch.object(client_with_mocked_api, "_record_device_failure") as mock_record,
         ):
             client_with_mocked_api._api.request = AsyncMock(side_effect=Exception("Network error"))

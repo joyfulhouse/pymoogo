@@ -22,7 +22,8 @@ class MoogoAPI:
 
     This class handles:
     - HTTP request/response with error handling
-    - Authentication token management
+    - Authentication token management with rate limiting
+    - Proactive token refresh before expiration
     - Response code interpretation
     - Automatic reauthentication on 401
 
@@ -39,6 +40,11 @@ class MoogoAPI:
     DEVICE_OFFLINE_CODE: Final[int] = 10201
     UNAUTHORIZED_CODE: Final[int] = 401
     SERVER_ERROR_CODE: Final[int] = 500
+
+    # Authentication rate limiting
+    MAX_REAUTH_ATTEMPTS: Final[int] = 3
+    REAUTH_COOLDOWN_SECONDS: Final[int] = 300  # 5 minutes
+    TOKEN_REFRESH_THRESHOLD_SECONDS: Final[int] = 3600  # 1 hour before expiry
 
     # API Endpoints
     ENDPOINTS: Final[dict[str, str]] = {
@@ -96,6 +102,11 @@ class MoogoAPI:
         self._user_id: str | None = None
         self._token_expires: datetime | None = None
 
+        # Reauthentication rate limiting
+        self._reauth_attempts: int = 0
+        self._last_reauth_attempt: datetime | None = None
+        self._reauth_locked_until: datetime | None = None
+
     @property
     def session(self) -> ClientSession:
         """Get or create aiohttp session."""
@@ -114,6 +125,21 @@ class MoogoAPI:
         return self._token is not None and (
             self._token_expires is None or datetime.now() < self._token_expires
         )
+
+    @property
+    def token_expiring_soon(self) -> bool:
+        """Check if token will expire within the refresh threshold."""
+        if self._token is None or self._token_expires is None:
+            return False
+        time_until_expiry = (self._token_expires - datetime.now()).total_seconds()
+        return time_until_expiry < self.TOKEN_REFRESH_THRESHOLD_SECONDS
+
+    @property
+    def is_reauth_locked(self) -> bool:
+        """Check if reauthentication is locked due to rate limiting."""
+        if self._reauth_locked_until is None:
+            return False
+        return datetime.now() < self._reauth_locked_until
 
     @property
     def base_url(self) -> str:
@@ -153,6 +179,11 @@ class MoogoAPI:
         """
         Make API request with error handling.
 
+        Features:
+        - Proactive token refresh before expiration (avoids 401 errors)
+        - Rate-limited reauthentication to prevent API lockouts
+        - Automatic retry on 401 with stored credentials
+
         Args:
             method: HTTP method
             endpoint: API endpoint (without base URL)
@@ -169,6 +200,16 @@ class MoogoAPI:
             MoogoRateLimitError: For rate limit errors
             MoogoDeviceError: For device-specific errors
         """
+        # Proactive token refresh: refresh token before it expires to avoid 401
+        # This saves an API call by preventing the 401 + reauthenticate + retry cycle
+        if authenticated and self.token_expiring_soon and self._email and self._password:
+            _LOGGER.info("Token expiring soon, proactively refreshing...")
+            try:
+                await self.authenticate(self._email, self._password)
+            except Exception as e:
+                _LOGGER.warning(f"Proactive token refresh failed: {e}")
+                # Continue with current token - it might still work
+
         url = f"{self._base_url}/{endpoint.lstrip('/')}"
         headers = self._get_headers(authenticated)
 
@@ -220,17 +261,65 @@ class MoogoAPI:
             raise MoogoAPIError(f"Request failed: {e}") from e
 
     async def _reauthenticate(self) -> bool:
-        """Attempt to reauthenticate with stored credentials."""
+        """
+        Attempt to reauthenticate with stored credentials.
+
+        Implements rate limiting to prevent excessive login attempts:
+        - Maximum 3 attempts within a 5-minute window
+        - After max attempts, locks reauthentication for 5 minutes
+        - Prevents API rate limiting and 24-hour lockouts
+
+        Returns:
+            True if reauthentication succeeded, False otherwise
+        """
         if not self._email or not self._password:
+            _LOGGER.debug("Cannot reauthenticate: no stored credentials")
             return False
 
-        _LOGGER.warning("Token expired, attempting reauthentication...")
+        # Check if reauthentication is locked
+        if self.is_reauth_locked:
+            remaining = (self._reauth_locked_until - datetime.now()).total_seconds()  # type: ignore[operator]
+            _LOGGER.warning(
+                f"Reauthentication locked for {remaining:.0f}s due to rate limiting. "
+                "Try again later."
+            )
+            return False
+
+        # Check cooldown window and reset counter if needed
+        now = datetime.now()
+        if self._last_reauth_attempt:
+            time_since_last = (now - self._last_reauth_attempt).total_seconds()
+            if time_since_last > self.REAUTH_COOLDOWN_SECONDS:
+                # Reset counter after cooldown period
+                self._reauth_attempts = 0
+
+        # Check if we've exceeded max attempts
+        if self._reauth_attempts >= self.MAX_REAUTH_ATTEMPTS:
+            self._reauth_locked_until = now + timedelta(seconds=self.REAUTH_COOLDOWN_SECONDS)
+            _LOGGER.error(
+                f"Reauthentication rate limited: {self._reauth_attempts} failed attempts. "
+                f"Locked for {self.REAUTH_COOLDOWN_SECONDS}s to prevent API lockout."
+            )
+            return False
+
+        _LOGGER.warning(
+            f"Token expired, attempting reauthentication "
+            f"(attempt {self._reauth_attempts + 1}/{self.MAX_REAUTH_ATTEMPTS})..."
+        )
         self._token = None
+        self._reauth_attempts += 1
+        self._last_reauth_attempt = now
 
         try:
             await self.authenticate(self._email, self._password)
+            # Reset counter on success
+            self._reauth_attempts = 0
+            self._reauth_locked_until = None
             _LOGGER.info("Reauthentication successful")
             return True
+        except MoogoAuthError as e:
+            _LOGGER.error(f"Reauthentication failed (auth error): {e}")
+            return False
         except Exception as e:
             _LOGGER.error(f"Reauthentication failed: {e}")
             return False
