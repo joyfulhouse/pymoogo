@@ -23,7 +23,7 @@ from pymoogo.models import DeviceStatus, Schedule
 # Constants are available via pymoogo.constants but not in main namespace
 # to avoid cluttering the API
 
-__version__ = "1.2.0"
+__version__ = "0.1.3"
 __all__ = [
     # Main classes
     "MoogoAPI",
