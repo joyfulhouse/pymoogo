@@ -104,7 +104,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: test-results-${{ matrix.python-version }}
           path: |
@@ -404,7 +404,7 @@ jobs:
 
       - name: Upload test output artifacts
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: integration-test-output-${{ matrix.python-version }}
           path: |
@@ -459,14 +459,14 @@ jobs:
           python -c "import pymoogo; print(f'Version: {pymoogo.__version__}')"
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
           retention-days: 90  # Keep for 3 months
 
       - name: Upload package metadata
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: package-metadata
           path: |
