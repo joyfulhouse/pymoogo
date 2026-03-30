@@ -93,7 +93,7 @@ jobs:
               --junitxml=junit-${{ matrix.python-version }}.xml
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         if: matrix.python-version == env.PYTHON_VERSION_DEFAULT
         with:
           files: ./coverage.xml
@@ -393,7 +393,7 @@ jobs:
             }
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         if: matrix.python-version == env.PYTHON_VERSION_DEFAULT && steps.integration-tests.outputs.test_failed == 'false'
         with:
           files: ./coverage.xml
