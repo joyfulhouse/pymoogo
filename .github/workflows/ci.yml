@@ -303,7 +303,7 @@ jobs:
 
       - name: Create rate limit issue
         if: steps.integration-tests.outputs.rate_limit_detected == 'true' && github.event_name != 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const issue = await github.rest.issues.create({
@@ -362,7 +362,7 @@ jobs:
 
       - name: Close rate limit issues on success
         if: steps.integration-tests.outputs.test_failed == 'false' && github.event_name != 'pull_request'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             // Find open rate limit issues
