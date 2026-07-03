@@ -1,0 +1,44 @@
+name: Dependabot auto-merge
+
+# Automatically approve and enable auto-merge for Dependabot PRs that are
+# safe (semver patch/minor). Major version bumps are intentionally left for
+# manual review. The merge only completes once branch protection is satisfied
+# (the "CI Success" required check passes and the branch is up to date).
+#
+# Security note: this uses the `pull_request` trigger and never checks out or
+# executes the PR's code, so untrusted Dependabot branch contents cannot run
+# with the elevated token below. See:
+# https://docs.github.com/code-security/dependabot/working-with-dependabot/automating-dependabot-with-github-actions
+
+on: pull_request
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    name: Auto-merge Dependabot PRs
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Approve and enable auto-merge (patch & minor only)
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        run: |
+          gh pr review --approve "$PR_URL"
+          gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Note held major update
+        if: ${{ steps.metadata.outputs.update-type == 'version-update:semver-major' }}
+        run: echo "::notice::Major version bump held for manual review (not auto-merged)."
