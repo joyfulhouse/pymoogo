@@ -1,29 +1,46 @@
 # pymoogo
 
-Python client library for the Moogo smart spray system API.
+Unofficial, reverse-engineered Python client library for Moogo smart mosquito misting devices.
 
-> **Note:** This is a community-created project and is not an official implementation by Moogo. It was developed through reverse engineering of the Android app and is maintained independently. Use at your own risk.
+> **Disclaimer:** This is a community-created project developed through reverse engineering
+> of the Moogo Android app. It is not affiliated with or endorsed by Moogo. Use at your own risk.
+
+[![PyPI Version][pypi-shield]][pypi]
+[![Python Versions][pyversions-shield]][pypi]
+[![License][license-shield]](LICENSE)
+[![CI][ci-shield]][ci]
+[![GitHub Sponsors][sponsors-shield]][sponsors]
+[![Ko-fi][kofi-shield]][kofi]
+
+## What It Does
+
+`pymoogo` is an async Python library for controlling Moogo smart mosquito misting systems.
+It provides authenticated access to device discovery, spray control, schedule management,
+and device status monitoring. It is designed for use in custom automation scripts and as
+the foundation of the [Moogo Smart Mosquito Misting Device][crosslink] Home Assistant integration.
 
 ## Features
 
-- **Async/Await Support** - Built with `aiohttp` for non-blocking operations
-- **Session Injection** - Support for external aiohttp session management (Home Assistant compatible)
-- **Automatic Authentication** - Token-based auth with automatic reauthentication
-- **Device Management** - Discover, monitor, and control Moogo devices
-- **Schedule Management** - Create and manage spray schedules with custom durations
-- **Type Hints** - Full type annotations for better IDE support
-- **Error Handling** - Comprehensive exception handling with specific error types
+- **Async/await support** — built with `aiohttp` for non-blocking operations
+- **Session injection** — accepts an external `aiohttp.ClientSession` (Home Assistant compatible)
+- **Automatic authentication** — token-based auth with automatic reauthentication
+- **Device management** — discover, monitor, and control Moogo devices via `MoogoDevice` objects
+- **Schedule management** — create, update, enable/disable, and delete spray schedules
+- **Session persistence** — export and restore auth sessions to avoid re-authenticating on restart
+- **Resilience** — circuit breaker pattern, exponential backoff, and rate-limit awareness
+- **Full type annotations** — strict mypy-compatible types throughout
 
 ## Installation
 
+See **[INSTALL.md](INSTALL.md)** for the complete guide.
+
 ```bash
-uv pip install pymoogo
+pip install pymoogo
+# or
+uv add pymoogo
 ```
 
-For development:
-```bash
-uv pip install pymoogo[dev]
-```
+Requires Python 3.13+.
 
 ## Quick Start
 
@@ -33,36 +50,20 @@ from pymoogo import MoogoClient
 
 async def main():
     async with MoogoClient(email="your@email.com", password="your_password") as client:
-        # Authenticate
         await client.authenticate()
-
-        # Get devices (returns MoogoDevice objects)
         devices = await client.get_devices()
-        print(f"Found {len(devices)} devices")
-
-        # Work with device objects
         if devices:
             device = devices[0]
-
-            # Refresh device status
             await device.refresh()
-            print(f"Device: {device.name}")
-            print(f"Online: {device.is_online}")
-            print(f"Running: {device.is_running}")
-
-            # Start spray using device object
+            print(f"Device: {device.name} | Online: {device.is_online} | Running: {device.is_running}")
             await device.start_spray()
-
-            # Wait a bit
             await asyncio.sleep(5)
-
-            # Stop spray
             await device.stop_spray()
 
 asyncio.run(main())
 ```
 
-## Usage Examples
+## Usage
 
 ### Authentication
 
@@ -72,303 +73,215 @@ from pymoogo import MoogoClient
 client = MoogoClient(email="your@email.com", password="your_password")
 await client.authenticate()
 
-# Check authentication status
 if client.is_authenticated:
     print("Authenticated successfully!")
 ```
 
-### Session Injection (Home Assistant Pattern)
+#### Session persistence
 
-The client supports injecting an external `aiohttp.ClientSession`, which is useful for Home Assistant integrations or applications that manage a shared session pool.
+Save and restore authentication sessions to avoid re-authenticating on every restart:
+
+```python
+import json
+from pymoogo import MoogoClient
+
+# Authenticate and save session
+client = MoogoClient(email="...", password="...")
+auth_data = await client.authenticate()
+with open("session.json", "w") as f:
+    json.dump(auth_data, f)
+
+# Later, restore the session
+with open("session.json") as f:
+    saved_session = json.load(f)
+
+client = MoogoClient()
+client.restore_session(saved_session)
+if not client.is_authenticated:
+    await client.authenticate()
+```
+
+Session management methods:
+- `await client.authenticate()` — returns session data dictionary
+- `client.export_session()` — export current session state for storage
+- `client.restore_session(data)` — restore a saved session
+- `client.is_authenticated` — check if session is currently valid
+
+### Session injection (Home Assistant pattern)
 
 ```python
 import aiohttp
 from pymoogo import MoogoClient
 
-# Create a shared session (e.g., provided by Home Assistant)
 session = aiohttp.ClientSession()
-
-# Inject the session into the client
-client = MoogoClient(
-    email="your@email.com",
-    password="your_password",
-    session=session  # Injected session
-)
-
-# Use the client
+client = MoogoClient(email="your@email.com", password="your_password", session=session)
 await client.authenticate()
-devices = await client.get_devices()  # Returns MoogoDevice objects
+devices = await client.get_devices()
+# ...
+await client.close()        # does NOT close the injected session
+await session.close()       # caller manages session lifecycle
+```
 
-# Work with device objects
+See [docs/SESSION_INJECTION.md](docs/SESSION_INJECTION.md) for full details.
+
+### Device discovery and status
+
+```python
+devices = await client.get_devices()
 for device in devices:
     await device.refresh()
-    print(f"{device.name}: {device.is_online}")
-
-# Check if using injected session
-print(f"Using injected session: {client.has_injected_session}")
-
-# Close the client (does NOT close the injected session)
-await client.close()
-
-# Caller is responsible for closing the injected session
-await session.close()
+    print(f"{device.name}: online={device.is_online}, running={device.is_running}")
+    print(f"  temp={device.temperature}°C  humidity={device.humidity}%")
+    print(f"  water={device.water_level}  liquid={device.liquid_level}")
+    print(f"  firmware={device.firmware}")
 ```
 
-**Key points about session injection:**
-- When a session is injected, the client will **NOT** close it when `close()` is called
-- The caller is responsible for managing the session lifecycle
-- Multiple clients can share the same session
-- Use `client.has_injected_session` to check if a session was injected
-
-### Session Persistence
-
-Save and restore authentication sessions to avoid re-authenticating on every restart:
+### Spray control
 
 ```python
-from pymoogo import MoogoClient
-import json
-
-# Authenticate and save session
-client = MoogoClient(email="...", password="...")
-auth_data = await client.authenticate()
-
-# Save to file/database
-with open("session.json", "w") as f:
-    json.dump(auth_data, f)
-
-# Later, restore the session
-with open("session.json", "r") as f:
-    saved_session = json.load(f)
-
-client = MoogoClient()
-client.restore_session(saved_session)
-
-if client.is_authenticated:
-    # Use client without re-authenticating
-    devices = await client.get_devices()
-else:
-    # Session expired, need to re-authenticate
-    await client.authenticate()
-```
-
-**Session management methods:**
-- `await client.authenticate()` - Returns session data dictionary
-- `client.export_session()` - Export current session state for storage
-- `client.restore_session(data)` - Restore saved session
-- `client.is_authenticated` - Check if session is valid
-
-### Device Discovery and Status
-
-```python
-# Get all devices as MoogoDevice objects
-devices = await client.get_devices()
-
-for device in devices:
-    # Refresh device status
-    await device.refresh()
-
-    print(f"Device: {device.name}")
-    print(f"  ID: {device.id}")
-    print(f"  Online: {device.is_online}")
-    print(f"  Running: {device.is_running}")
-    print(f"  Temperature: {device.temperature}°C")
-    print(f"  Humidity: {device.humidity}%")
-    print(f"  Water Level: {device.water_level}")
-    print(f"  Liquid Level: {device.liquid_level}")
-    print(f"  Firmware: {device.firmware}")
-```
-
-### Spray Control
-
-```python
-# Get device object
-devices = await client.get_devices()
 device = devices[0]
-
-# Start spray using device object
 await device.start_spray()
-
-# Stop spray
 await device.stop_spray()
 
-# Start spray with duration (uses temporary schedule)
+# Start with duration (uses a temporary schedule; cleans up automatically)
 await device.start_spray_with_duration(duration=60, cleanup=True)
 ```
 
-### Schedule Management
+`start_spray()` and `stop_spray()` poll for state confirmation (up to 10 s by default)
+before returning. Pass `timeout` and `poll_interval` to adjust.
+
+### Schedule management
 
 ```python
-# Get device object
-devices = await client.get_devices()
-device = devices[0]
-
-# Get existing schedules
+# List schedules
 schedules = await device.get_schedules()
-for schedule in schedules:
-    print(f"Schedule: {schedule.time_str} for {schedule.duration}s")
-    print(f"  Enabled: {schedule.is_enabled}")
-    print(f"  Repeat: {schedule.repeat_set}")
+for s in schedules:
+    print(f"{s.time_str} for {s.duration}s  enabled={s.is_enabled}")
 
-# Create a new schedule
-# Spray every day at 8:00 AM for 60 seconds
-await device.create_schedule(
-    hour=8,
-    minute=0,
-    duration=60,
-    repeat_set="0,1,2,3,4,5,6",  # All days
-    enabled=True
-)
+# Create
+await device.create_schedule(hour=8, minute=0, duration=60,
+                              repeat_set="0,1,2,3,4,5,6", enabled=True)
 
-# Update a schedule
-await device.update_schedule(
-    schedule_id="schedule_id",
-    duration=120,  # Change to 120 seconds
-    enabled=False  # Disable schedule
-)
-
-# Enable/disable specific schedule
+# Update / enable / disable
+await device.update_schedule("schedule_id", duration=120, enabled=False)
 await device.enable_schedule("schedule_id")
 await device.disable_schedule("schedule_id")
 
-# Bulk operations
+# Bulk
 await device.enable_all_schedules()
 await device.disable_all_schedules()
 
-# Delete a schedule
+# Delete
 await device.delete_schedule("schedule_id")
 ```
 
-### Public Endpoints (No Authentication Required)
+### Public endpoints (no authentication required)
 
 ```python
-# Get available liquid types
 liquid_types = await client.get_liquid_types()
-
-# Get recommended schedules
-schedules = await client.get_recommended_schedules()
+recommended = await client.get_recommended_schedules()
 ```
 
-## Data Models
+## API Reference
 
-### DeviceStatus
+Full API reference and protocol notes: [docs/](docs/).
 
-```python
-@dataclass
-class DeviceStatus:
-    device_id: str
-    device_name: str
-    online_status: int  # 0=offline, 1=online
-    run_status: int  # 0=stopped, 1=running
-    rssi: int
-    temperature: float
-    humidity: int
-    liquid_level: int
-    water_level: int
-    mix_ratio: int
-    firmware: str
-    latest_spraying_duration: Optional[int]
-    latest_spraying_end: Optional[int]
+### Key classes
 
-    @property
-    def is_online(self) -> bool
+| Class | Description |
+|---|---|
+| `MoogoClient` | High-level async client; entry point for all operations |
+| `MoogoDevice` | Per-device handle returned by `get_devices()`; exposes status and control methods |
+| `DeviceStatus` | Dataclass holding the raw device state snapshot |
+| `Schedule` | Dataclass representing a spray schedule |
 
-    @property
-    def is_running(self) -> bool
-```
+### Data models
 
-### Schedule
+`DeviceStatus` fields: `device_id`, `device_name`, `online_status`, `run_status`, `rssi`,
+`temperature` (int), `humidity`, `liquid_level`, `water_level`, `liquid_concentration`,
+`firmware`, `latest_spraying_duration`, `latest_spraying_end`.
+Properties: `is_online`, `is_running`, `signal_strength`.
 
-```python
-@dataclass
-class Schedule:
-    id: str
-    hour: int
-    minute: int
-    duration: int
-    repeat_set: str
-    status: int  # 1=enabled, 0=disabled
+`Schedule` fields: `id`, `hour`, `minute`, `duration`, `repeat_set`, `status`.
+Properties: `is_enabled`, `time_str`.
 
-    @property
-    def is_enabled(self) -> bool
+### Exceptions
 
-    @property
-    def time_str(self) -> str
-```
+| Exception | When raised |
+|---|---|
+| `MoogoAuthError` | Authentication failed or credentials rejected |
+| `MoogoDeviceError` | Device is offline or state-change confirmation timed out |
+| `MoogoRateLimitError` | Rate limited (error code 10000); do not retry for 24 hours |
+| `MoogoAPIError` | Any other API-level error |
 
-## Exception Handling
+### Error codes
+
+| Code | Meaning |
+|---|---|
+| `0` | Success |
+| `10000` | Rate limited — 24-hour lockout, do not retry |
+| `10104` | Invalid credentials |
+| `10201` | Device offline |
+| `401` | Unauthorized |
+| `500` | Server error |
 
 ```python
-from pymoogo import (
-    MoogoClient,
-    MoogoAPIError,
-    MoogoAuthError,
-    MoogoDeviceError,
-    MoogoRateLimitError,
-)
-
-# Get device object
-devices = await client.get_devices()
-device = devices[0]
+from pymoogo import MoogoClient, MoogoAPIError, MoogoAuthError, MoogoDeviceError, MoogoRateLimitError
 
 try:
     await device.start_spray()
 except MoogoAuthError:
     print("Authentication failed")
 except MoogoDeviceError:
-    print("Device is offline or operation failed")
+    print("Device offline or timeout waiting for state change")
 except MoogoRateLimitError:
-    print("Rate limited - wait 24 hours")
+    print("Rate limited — wait 24 hours before retrying")
 except MoogoAPIError as e:
     print(f"API error: {e}")
 ```
 
-## Error Codes
-
-- `0` - Success
-- `10000` - Rate limited (24-hour lockout, do not retry)
-- `10104` - Invalid credentials
-- `10201` - Device offline
-- `401` - Unauthorized
-- `500` - Server error
-
 ## Development
 
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). In short:
+
 ```bash
-# Clone repository
 git clone https://github.com/joyfulhouse/pymoogo.git
 cd pymoogo
-
-# Install in development mode
-uv sync --all-extras
-
-# Run tests
+uv sync
 uv run pytest
-
-# Type checking
-uv run mypy src/pymoogo
-
-# Linting
-uv run ruff check .
+uv run ruff check
+uv run mypy
 ```
 
-## API Documentation
+## Support
 
-See [openapi.yaml](docs/openapi.yaml) for complete API documentation.
+- **Issues:** <https://github.com/joyfulhouse/pymoogo/issues>
+- **PyPI:** <https://pypi.org/project/pymoogo/>
 
-## Publishing
+## Support Development
 
-For information on publishing this package to PyPI, see:
-- [docs/PUBLISHING.md](docs/PUBLISHING.md) - Complete publishing guide
-- [docs/NEXT_STEPS.md](docs/NEXT_STEPS.md) - Quick setup checklist
+If this library is useful to you, please consider supporting its development:
+
+- [GitHub Sponsors][sponsors]
+- [Ko-fi][kofi]
 
 ## License
 
-MIT License
+This project is licensed under the **MIT** License — see [LICENSE](LICENSE) for details.
 
-## Contributing
+## Related Projects
 
-Contributions are welcome! Please open an issue or submit a pull request.
+- [Moogo Smart Mosquito Misting Device][crosslink] — the Home Assistant integration built on this library.
 
-## Disclaimer
-
-This is an unofficial API client reverse-engineered from the Moogo Android app. It is not affiliated with or endorsed by Moogo.
+<!-- Badge links -->
+[pypi-shield]: https://img.shields.io/pypi/v/pymoogo.svg?style=for-the-badge
+[pypi]: https://pypi.org/project/pymoogo/
+[pyversions-shield]: https://img.shields.io/pypi/pyversions/pymoogo.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/joyfulhouse/pymoogo.svg?style=for-the-badge
+[ci-shield]: https://img.shields.io/github/actions/workflow/status/joyfulhouse/pymoogo/ci.yml?style=for-the-badge&label=CI
+[ci]: https://github.com/joyfulhouse/pymoogo/actions
+[sponsors-shield]: https://img.shields.io/badge/sponsor-GitHub-EA4AAA.svg?style=for-the-badge&logo=githubsponsors&logoColor=white
+[sponsors]: https://github.com/sponsors/btli
+[kofi-shield]: https://img.shields.io/badge/Ko--fi-donate-FF5E5B.svg?style=for-the-badge&logo=ko-fi&logoColor=white
+[kofi]: https://ko-fi.com/bryanli
+[crosslink]: https://github.com/joyfulhouse/moogo

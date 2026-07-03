@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Field mapping: `liquidConcentration` API field now correctly mapped (was unmapped)
 - Field mapping: Removed non-existent `mixRatio` API field reference
 
-## [1.2.0] - 2024-11-21
+## [1.2.0] - 2025-11-21
 
 ### Added
 - **Constants module** (`pymoogo.constants`) with all magic numbers defined
@@ -82,7 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Migration
 See [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) for detailed migration instructions.
 
-## [1.1.0] - 2024-11-XX
+## [1.1.0] - 2025-11-21
 
 ### Added
 - Enhanced CI/CD workflow with comprehensive rate limit resilience
@@ -106,7 +106,7 @@ See [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) for detailed migration instruc
 - Device offline detection and graceful degradation
 - Session expiration and automatic reauthentication
 
-## [1.0.0] - 2024-XX-XX
+## [1.0.0] - 2025-11-17
 
 ### Added
 - Initial release
@@ -117,7 +117,8 @@ See [MIGRATION_GUIDE.md](docs/MIGRATION_GUIDE.md) for detailed migration instruc
 - Async/await support with aiohttp
 - Session injection for Home Assistant compatibility
 
-[Unreleased]: https://github.com/joyfulhouse/pymoogo/compare/v1.2.0...HEAD
-[1.2.0]: https://github.com/joyfulhouse/pymoogo/compare/v1.1.0...v1.2.0
+[Unreleased]: https://github.com/joyfulhouse/pymoogo/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/joyfulhouse/pymoogo/releases/tag/v0.1.3
+[1.2.0]: https://github.com/joyfulhouse/pymoogo/releases/tag/v1.2.0
 [1.1.0]: https://github.com/joyfulhouse/pymoogo/releases/tag/v1.1.0
 [1.0.0]: https://github.com/joyfulhouse/pymoogo/releases/tag/v1.0.0

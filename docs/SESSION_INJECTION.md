@@ -193,7 +193,7 @@ client = MoogoClient(email="...", password="...", session=session, timeout=60)
 
 ## Complete Example
 
-See [`examples/session_injection.py`](examples/session_injection.py) for a complete working example demonstrating all patterns.
+See [`examples/session_injection.py`](../examples/session_injection.py) for a complete working example demonstrating all patterns.
 
 ## Testing
 
