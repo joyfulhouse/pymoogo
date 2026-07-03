@@ -13,4 +13,4 @@ aiohttp>=3.8.0
 
 # Optional: Enhanced test output
 pytest-xdist>=3.8.0  # Parallel test execution
-pytest-sugar>=0.9.7  # Better test output formatting
+pytest-sugar>=1.1.1  # Better test output formatting
