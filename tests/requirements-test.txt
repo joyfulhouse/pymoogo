@@ -12,5 +12,5 @@ python-dotenv>=1.0.0
 aiohttp>=3.8.0
 
 # Optional: Enhanced test output
-pytest-xdist>=3.3.0  # Parallel test execution
+pytest-xdist>=3.8.0  # Parallel test execution
 pytest-sugar>=0.9.7  # Better test output formatting
